@@ -131,5 +131,16 @@ public class AABB : MonoBehaviour
         SetAABB(transform.position, transform.localScale);
     }
 
+    public void OnDrawGizmosSelected()
+    {
+        Debug.Log("OnDrawGizmos");
+        Gizmos.color = Color.green;
+
+        Vector3 center = transform.position;
+        Vector3 size = transform.localScale;
+        
+        Gizmos.DrawWireCube(center, size);
+    }
+
     #endregion
 }

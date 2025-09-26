@@ -13,7 +13,10 @@ public class CustomCollider : MonoBehaviour
     #region MonoBehaviour
     private void Start()
     {
-        aabb = gameObject.AddComponent<AABB>();
+        bool sucess = gameObject.TryGetComponent<AABB>(out aabb);
+        if (!sucess)
+            aabb = gameObject.AddComponent<AABB>();
+        
         position = transform.position;
         scale = transform.localScale;
         rotation = transform.rotation;
