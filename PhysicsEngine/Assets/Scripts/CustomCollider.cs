@@ -34,7 +34,7 @@ public class CustomCollider : MonoBehaviour
     public Vector3 GetPosition() { return position; }
     public Quaternion GetRotation() { return rotation; }
     public Vector3 GetScale() { return scale; }
-    public AABB GetAABB() { return aabb; }
+    public AABB GetAABB() { return aabb; return gameObject.GetComponentInParent<AABB>(); }
     #endregion
 }
 

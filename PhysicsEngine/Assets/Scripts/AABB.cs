@@ -133,8 +133,7 @@ public class AABB : MonoBehaviour
 
     public void OnDrawGizmosSelected()
     {
-        Debug.Log("OnDrawGizmos");
-        Gizmos.color = Color.green;
+        Gizmos.color = Color.red;
 
         Vector3 center = transform.position;
         Vector3 size = transform.localScale;
