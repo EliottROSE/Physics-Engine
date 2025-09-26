@@ -15,11 +15,17 @@ public class CustomCollider : MonoBehaviour
     #region MonoBehaviour
     private void Start()
     {
-        aabb = new AABB(position, scale);
+        aabb = new AABB(transform.position, transform.localScale);
+        position = transform.position;
+        scale = transform.localScale;
+        rotation = transform.rotation;
     }
 
     private void Update()
     {
+        position = transform.position;
+        scale = transform.localScale;
+        rotation = transform.rotation;
         DrawAABB();
     }
     #endregion

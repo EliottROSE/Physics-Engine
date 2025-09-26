@@ -15,7 +15,7 @@ public class AABB
     public Vector3 GetAABBMinPos() { return minPos; }
     public Vector3 GetAABBMaxPos() { return maxPos; }
     
-    static bool CheckAABBCollision(AABB A, AABB B)
+    public static bool CheckAABBCollision(AABB A, AABB B)
     {
         Vector3 minA = A.GetAABBMinPos();
         Vector3 maxA = A.GetAABBMaxPos();
