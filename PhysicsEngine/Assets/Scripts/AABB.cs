@@ -27,7 +27,7 @@ public class AABB : MonoBehaviour
         return dx * dy * dz;
     }
 
-    public float GetUnionVolume(AABB aabb1, AABB aabb2)
+    public static float GetUnionVolume(AABB aabb1, AABB aabb2)
     {
         float minX = MathF.Min(aabb1.minPos.x, aabb2.minPos.x);
         float minY = MathF.Min(aabb1.minPos.y, aabb2.minPos.y);
@@ -44,9 +44,9 @@ public class AABB : MonoBehaviour
         return dx * dy * dz;
     }
 
-    public float GetUnionCost(AABB aabb1, AABB aabb2)
+    public static float GetUnionCost(AABB aabb1, AABB aabb2)
     {
-        float unionVolume = GetUnionVolume(aabb1, aabb1);
+        float unionVolume = GetUnionVolume(aabb1, aabb2);
         float cost = unionVolume - aabb1.GetVolume();
         return cost;
     }
@@ -86,8 +86,8 @@ public class AABB : MonoBehaviour
             AABBdebugRenderer.endWidth = 0.01f;
             
             AABBdebugRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            AABBdebugRenderer.startColor = Color.green;
-            AABBdebugRenderer.endColor = Color.green;
+            AABBdebugRenderer.startColor = Color.red;
+            AABBdebugRenderer.endColor = Color.red;
 
             
             GetDebugPoints(minPos, maxPos);
