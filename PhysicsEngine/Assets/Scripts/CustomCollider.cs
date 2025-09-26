@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-public class Collider : MonoBehaviour
+public class CustomCollider : MonoBehaviour
 {   
     protected Vector3 position;
     protected Quaternion rotation;
@@ -19,7 +19,7 @@ public class Collider : MonoBehaviour
     }
 }
 
-public class BoxCollider : Collider
+public class CustomBoxCollider : CustomCollider
 {
     private Vector3 minPos;
     private Vector3 maxPos;
@@ -27,7 +27,7 @@ public class BoxCollider : Collider
     LineRenderer debugRenderer;
     private List<Vector3> debugPoints = new List<Vector3>();
 
-    BoxCollider(Vector3 position, Quaternion rotation, Vector3 scale)
+    public CustomBoxCollider(Vector3 position, Quaternion rotation, Vector3 scale)
     {
         // min = center - 1/2*(scale)
         // max = center + 1/2*(scale)
