@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor.Rendering;
 using UnityEngine;
 
 public class PhysicsManager : MonoBehaviour
@@ -20,13 +21,13 @@ public class PhysicsManager : MonoBehaviour
     
     public class Node
     {
-        private int parentIndex; // -1 if root
+        public int parentIndex; // -1 if root
         
-        private int leftIndex; // -1 if empty || if collider
-        private int rightIndex; // -1 if empty || if collider
+        public int leftIndex; // -1 if empty || if collider
+        public int rightIndex; // -1 if empty || if collider
         
-        private bool isLeaf = false; // false if AABB | true if Collider
-        private int AABBIndex; // AABB index
+        public bool isLeaf = false; // false if AABB | true if Collider
+        public int AABBIndex; // AABB index
 
         public Node(int parent, int left, int right, bool isCollider, int AABB)
         {
@@ -38,6 +39,8 @@ public class PhysicsManager : MonoBehaviour
             isLeaf = isCollider;
             AABBIndex = AABB;
         }
+        
+        
     }
     
     List<AABB> bounds = new List<AABB>();
@@ -86,7 +89,48 @@ public class PhysicsManager : MonoBehaviour
             Node root = new Node(-1, -1, -1, true, 0); // 0 beceause there is only one collider so only one aabb in list
             return;
         }
+
+        foreach (AABB bound in bounds)
+        {
+            InsertAABB(bound);
+        }
+    }
+    
+    public void InsertAABB(AABB bound)
+    {
+        if (boundsTree.Count == 0)
+        {
+            Node node = new Node(-1, -1, -1, true, 0);
+            boundsTree.Add(node);            
+        }
+
+        bool isLeaf = false;
+        Node currentNode = null;
         
+        while (!isLeaf)
+        {
+            if (currentNode.leftIndex == -1 && currentNode.rightIndex == -1)
+            {
+                isLeaf = true;
+                continue;
+            }
+            float leftValue = AABB.GetUnionCost(bounds[boundsTree[currentNode.leftIndex].AABBIndex], bound);
+            float rightValue = AABB.GetUnionCost(bounds[boundsTree[currentNode.rightIndex].AABBIndex], bound);
+
+            if (leftValue < rightValue)
+            {
+                currentNode = boundsTree[currentNode.leftIndex];
+            }
+            else
+            {
+                currentNode = boundsTree[currentNode.rightIndex];
+            }
+        }
         
+        Node ancienNode = currentNode;
+        
+        //Node parent = new Node(currentNode.parentIndex, boundsTree[currentNode.parentIndex]);
+        //parent.rightIndex = tempNode.AABBIndex;
+        //parent.rightIndex = tempNode.AABBIndex;
     }
 }
