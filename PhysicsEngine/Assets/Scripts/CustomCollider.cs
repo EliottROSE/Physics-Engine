@@ -13,9 +13,9 @@ public class CustomCollider : MonoBehaviour
     #region MonoBehaviour
     private void Start()
     {
-        bool sucess = gameObject.TryGetComponent<AABB>(out aabb);
+        /*bool sucess = gameObject.TryGetComponent<AABB>(out aabb);
         if (!sucess)
-            aabb = gameObject.AddComponent<AABB>();
+            aabb = gameObject.AddComponent<AABB>();*/
         
         position = transform.position;
         scale = transform.localScale;
@@ -27,6 +27,7 @@ public class CustomCollider : MonoBehaviour
         position = transform.position;
         scale = transform.localScale;
         rotation = transform.rotation;
+        aabb.SetAABB(position, scale);
     }
     #endregion
     
@@ -36,6 +37,12 @@ public class CustomCollider : MonoBehaviour
     public Vector3 GetScale() { return scale; }
     public AABB GetAABB() { return aabb; return gameObject.GetComponentInParent<AABB>(); }
     #endregion
+
+    public void InitAABB()
+    {
+        aabb = new AABB();
+        aabb.SetAABB(transform.position, transform.localScale);
+    }
 }
 
 public class CustomBoxCollider : CustomCollider

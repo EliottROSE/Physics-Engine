@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-public class AABB : MonoBehaviour
+public class AABB
 {
     private Vector3 minPos;
     private Vector3 maxPos;
     
-    private LineRenderer AABBdebugRenderer;
-    private List<Vector3> AABBdebugPoints = new List<Vector3>(8);
+    //private LineRenderer AABBdebugRenderer;
+    //private List<Vector3> AABBdebugPoints = new List<Vector3>(8);
     
     public Vector3 GetAABBMinPos() { return minPos; }
     public Vector3 GetAABBMaxPos() { return maxPos; }
@@ -24,6 +24,17 @@ public class AABB : MonoBehaviour
         minPos = Vector3.Min(aabb1.GetAABBMinPos(), aabb2.GetAABBMinPos());
         maxPos = Vector3.Max(aabb1.GetAABBMaxPos(), aabb2.GetAABBMaxPos());
     }
+
+    public Vector3 GetPosition()
+    {
+        return (minPos + maxPos) * 0.5f;
+    }
+
+    public Vector3 GetScale()
+    {
+        return maxPos - minPos;
+    }
+    
     public float GetVolume()
     {
         float dx = maxPos.x - minPos.x;
@@ -82,7 +93,7 @@ public class AABB : MonoBehaviour
         return true;
     }
     
-    public void DrawAABB()
+    /*public void DrawAABB()
     {
         if (AABBdebugRenderer == null)
         {
@@ -126,11 +137,11 @@ public class AABB : MonoBehaviour
         {
             AABBdebugPoints.Add(corners[edges[i]]);
         }
-    }
+    }*/
     
     #endregion
 
-    #region MonoBehaviour
+    /*#region MonoBehaviour
 
     public void Start()
     {
@@ -147,5 +158,5 @@ public class AABB : MonoBehaviour
         Gizmos.DrawWireCube(center, size);
     }
 
-    #endregion
+    #endregion*/
 }

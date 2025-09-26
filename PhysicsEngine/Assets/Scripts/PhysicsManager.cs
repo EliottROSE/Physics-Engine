@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor.Rendering;
@@ -52,18 +53,27 @@ public class PhysicsManager : MonoBehaviour
     
     void Start()
     {
-        bounds = FindObjectsOfType<AABB>().ToList();
+        colliders = FindObjectsOfType<CustomCollider>().ToList();
 
-        foreach (AABB bound in bounds)
+        foreach (CustomCollider collider in colliders)
         {
-            CustomCollider collider;
-            if (bound.gameObject.TryGetComponent<CustomCollider>(out collider))
-            {
-                colliders.Add(collider);
-            }
+            collider.InitAABB();
+            AABB bound = collider.GetAABB();
+            bounds.Add(bound);
         }
         
         BuildAABBTree();
+    }
+    
+    
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.red;
+        foreach (AABB bound in bounds)
+        {
+            Gizmos.DrawWireCube(bound.GetPosition(), bound.GetScale());
+        }
     }
 
     // Update is called once per frame
@@ -71,7 +81,7 @@ public class PhysicsManager : MonoBehaviour
     {
         foreach (AABB bound in bounds)
         {
-            bound.DrawAABB();
+            //bound.DrawAABB();
         }
     }
 
@@ -137,23 +147,23 @@ public class PhysicsManager : MonoBehaviour
         bounds.Add(newParentAABB);
         
         Node newParentNode = null;
-        boundsTree.Add(newParentNode);
         
-        currentNode.parentIndex = boundsTree.Count - 1;
+        currentNode.parentIndex = boundsTree.Count;
 
         bounds.Add(bound);
-        Node newBoundsNode = new Node(boundsTree.Count - 1, -1, -1, true, bounds.Count - 1);
+        Node newBoundsNode = new Node(boundsTree.Count, -1, -1, true, bounds.Count - 1);
         boundsTree.Add(newBoundsNode);
         
         if (isRight)
         {
             // issue with left (change -1)
-            newParentNode = new Node(currentNode.parentIndex, boundsTree.Count - 1, newIndex,false, bounds.Count - 1);
+            newParentNode = new Node(currentNode.parentIndex, boundsTree.Count, newIndex,false, bounds.Count - 1);
         }
         else
         {
             // issue with right (change -1)
-            newParentNode = new Node(currentNode.parentIndex, newIndex, boundsTree.Count - 1,false, bounds.Count - 1);
+            newParentNode = new Node(currentNode.parentIndex, newIndex, boundsTree.Count,false, bounds.Count - 1);
         }
+        boundsTree.Add(newParentNode);
     }
 }
