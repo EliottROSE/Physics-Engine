@@ -21,8 +21,13 @@ public class AABB : MonoBehaviour
 
     public void SetAABB(AABB aabb1, AABB aabb2)
     {
-        minPos = Vector3.Min(aabb1.GetAABBMinPos(), aabb2.GetAABBMinPos());
-        maxPos = Vector3.Max(aabb1.GetAABBMaxPos(), aabb2.GetAABBMaxPos());
+        minPos.x = Mathf.Min(aabb1.GetAABBMinPos().x, aabb2.GetAABBMinPos().x);
+        minPos.y = Mathf.Min(aabb1.GetAABBMinPos().y, aabb2.GetAABBMinPos().y);
+        minPos.z = Mathf.Min(aabb1.GetAABBMinPos().z, aabb2.GetAABBMinPos().z);
+        
+        maxPos.x = Mathf.Max(aabb1.GetAABBMaxPos().x, aabb2.GetAABBMaxPos().x);
+        maxPos.y = Mathf.Max(aabb1.GetAABBMaxPos().y, aabb2.GetAABBMaxPos().y);
+        maxPos.z = Mathf.Max(aabb1.GetAABBMaxPos().z, aabb2.GetAABBMaxPos().z);
     }
     public float GetVolume()
     {
