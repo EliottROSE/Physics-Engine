@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class AABB
@@ -14,6 +15,39 @@ public class AABB
     
     public Vector3 GetAABBMinPos() { return minPos; }
     public Vector3 GetAABBMaxPos() { return maxPos; }
+
+    public float GetVolume()
+    {
+        float dx = maxPos.x - minPos.x;
+        float dy = maxPos.y - minPos.y;
+        float dz = maxPos.z - minPos.z;
+
+        return dx * dy * dz;
+    }
+
+    public float GetUnionVolume(AABB aabb1, AABB aabb2)
+    {
+        float minX = MathF.Min(aabb1.minPos.x, aabb2.minPos.x);
+        float minY = MathF.Min(aabb1.minPos.y, aabb2.minPos.y);
+        float minZ = MathF.Min(aabb1.minPos.z, aabb2.minPos.z);
+
+        float maxX = MathF.Max(aabb1.maxPos.x, aabb2.maxPos.x);
+        float maxY = MathF.Max(aabb1.maxPos.y, aabb2.maxPos.y);
+        float maxZ = MathF.Max(aabb1.maxPos.z, aabb2.maxPos.z);
+
+        float dx = maxX - minX;
+        float dy = maxY - minY;
+        float dz = maxZ - minZ;
+
+        return dx * dy * dz;
+    }
+
+    public float GetUnionCost(AABB aabb1, AABB aabb2)
+    {
+        float unionVolume = GetUnionVolume(aabb1, aabb1);
+        float cost = unionVolume - aabb1.GetVolume();
+        return cost;
+    }
     
     public static bool CheckAABBCollision(AABB A, AABB B)
     {
