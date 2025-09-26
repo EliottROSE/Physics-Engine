@@ -31,7 +31,7 @@ public class PhysicsManager : MonoBehaviour
 
         public Node(int parent, int left, int right, bool isCollider, int AABB)
         {
-            parent = parentIndex;
+            parentIndex = parent;
             
             leftIndex = left;
             rightIndex = right;
@@ -121,14 +121,14 @@ public class PhysicsManager : MonoBehaviour
 
             if (leftValue < rightValue)
             {
+                newIndex = currentNode.leftIndex;
                 currentNode = boundsTree[currentNode.leftIndex];
-                newIndex = boundsTree[currentNode.parentIndex].leftIndex;
                 isRight = false;
             }
             else
             {
+                newIndex = currentNode.rightIndex;
                 currentNode = boundsTree[currentNode.rightIndex];
-                newIndex = boundsTree[currentNode.parentIndex].rightIndex;
             }
         }
 
@@ -137,25 +137,23 @@ public class PhysicsManager : MonoBehaviour
         bounds.Add(newParentAABB);
         
         Node newParentNode = null;
+        boundsTree.Add(newParentNode);
+        
+        currentNode.parentIndex = boundsTree.Count - 1;
+
+        bounds.Add(bound);
+        Node newBoundsNode = new Node(boundsTree.Count - 1, -1, -1, true, bounds.Count - 1);
+        boundsTree.Add(newBoundsNode);
+        
         if (isRight)
         {
             // issue with left (change -1)
-            newParentNode = new Node(currentNode.parentIndex, -1, newIndex,false, bounds.Count - 1);
+            newParentNode = new Node(currentNode.parentIndex, boundsTree.Count - 1, newIndex,false, bounds.Count - 1);
         }
         else
         {
             // issue with right (change -1)
-            newParentNode = new Node(currentNode.parentIndex, newIndex, -1,false, bounds.Count - 1);
+            newParentNode = new Node(currentNode.parentIndex, newIndex, boundsTree.Count - 1,false, bounds.Count - 1);
         }
-        
-        
-        boundsTree.Add(newParentNode);
-        
-        //currentNode.parentIndex = boundsTree.Count - 1;
-
-        //bounds.Add(bound);
-        //Node parent = new Node(currentNode.parentIndex, boundsTree[currentNode.parentIndex]);
-        //parent.rightIndex = tempNode.AABBIndex;
-        //parent.rightIndex = tempNode.AABBIndex;
     }
 }
