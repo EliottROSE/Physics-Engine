@@ -106,7 +106,9 @@ public class PhysicsManager : MonoBehaviour
 
         bool isLeaf = false;
         Node currentNode = null;
-        
+
+        int newIndex = 0;
+        bool isRight = true;
         while (!isLeaf)
         {
             if (currentNode.leftIndex == -1 && currentNode.rightIndex == -1)
@@ -120,15 +122,38 @@ public class PhysicsManager : MonoBehaviour
             if (leftValue < rightValue)
             {
                 currentNode = boundsTree[currentNode.leftIndex];
+                newIndex = boundsTree[currentNode.parentIndex].leftIndex;
+                isRight = false;
             }
             else
             {
                 currentNode = boundsTree[currentNode.rightIndex];
+                newIndex = boundsTree[currentNode.parentIndex].rightIndex;
             }
         }
+
+        AABB newParentAABB = new AABB();
+        newParentAABB.SetAABB(bounds[currentNode.AABBIndex], bound);
+        bounds.Add(newParentAABB);
         
-        Node ancienNode = currentNode;
+        Node newParentNode = null;
+        if (isRight)
+        {
+            // issue with left (change -1)
+            newParentNode = new Node(currentNode.parentIndex, -1, newIndex,false, bounds.Count - 1);
+        }
+        else
+        {
+            // issue with right (change -1)
+            newParentNode = new Node(currentNode.parentIndex, newIndex, -1,false, bounds.Count - 1);
+        }
         
+        
+        boundsTree.Add(newParentNode);
+        
+        //currentNode.parentIndex = boundsTree.Count - 1;
+
+        //bounds.Add(bound);
         //Node parent = new Node(currentNode.parentIndex, boundsTree[currentNode.parentIndex]);
         //parent.rightIndex = tempNode.AABBIndex;
         //parent.rightIndex = tempNode.AABBIndex;
