@@ -12,6 +12,7 @@ public class AABB : MonoBehaviour
     public Vector3 GetAABBMinPos() { return minPos; }
     public Vector3 GetAABBMaxPos() { return maxPos; }
 
+    #region CustomMethods
     public void SetAABB(Vector3 posistion, Vector3 scale)
     {
         minPos = posistion - (0.5f * (scale));
@@ -50,7 +51,6 @@ public class AABB : MonoBehaviour
         return cost;
     }
     
-    #region CustomMethods
     public static bool CheckAABBCollision(AABB A, AABB B)
     {
         Vector3 minA = A.GetAABBMinPos();
@@ -122,5 +122,14 @@ public class AABB : MonoBehaviour
         }
     }
     
+    #endregion
+
+    #region MonoBehaviour
+
+    public void Start()
+    {
+        SetAABB(transform.position, transform.localScale);
+    }
+
     #endregion
 }

@@ -14,7 +14,6 @@ public class CustomCollider : MonoBehaviour
     private void Start()
     {
         aabb = gameObject.AddComponent<AABB>();
-        aabb.SetAABB(transform.position, transform.localScale);
         position = transform.position;
         scale = transform.localScale;
         rotation = transform.rotation;
