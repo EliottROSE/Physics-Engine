@@ -48,7 +48,7 @@ public class PhysicsManager : MonoBehaviour
     List<CustomCollider> colliders = new List<CustomCollider>();
     
     List<Node> boundsTree = new List<Node>();
-    
+    int root;
     // {index, aabb, collider} : {0, aabb1, null}
     
     void Start()
@@ -87,20 +87,22 @@ public class PhysicsManager : MonoBehaviour
 
     public void BuildAABBTree()
     {
-        if (colliders.Count == 0)
+        if (bounds.Count == 0)
         {
             Debug.Log("No colliders found in the scene");
             return;
         }
 
         // Special case if there is only one collider
-        if (colliders.Count == 1)
+        if (bounds.Count == 1)
         {
-            Node root = new Node(-1, -1, -1, true, 0); // 0 beceause there is only one collider so only one aabb in list
+            Node first = new Node(-1, -1, -1, true, 0); // 0 beceause there is only one collider so only one aabb in list
+            boundsTree.Add(first);
+            root = 0;
             return;
         }
 
-        foreach (AABB bound in bounds)
+        foreach (AABB bound in bounds) // issue of logic here, 
         {
             InsertAABB(bound);
         }
