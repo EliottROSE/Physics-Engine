@@ -180,7 +180,11 @@ public class PhysicsManager : MonoBehaviour
         }
         else
         {
-            
+            if (isLeft)
+                boundsTree[currentNode.parentIndex].leftIndex = boundsTree.Count - 1;
+            else
+                boundsTree[currentNode.parentIndex].rightIndex = boundsTree.Count - 1; 
+            bounds[boundsTree[currentNode.parentIndex].AABBIndex].SetAABB(bounds[boundsTree[boundsTree[currentNode.parentIndex].leftIndex].AABBIndex], bounds[boundsTree[boundsTree[currentNode.parentIndex].rightIndex].AABBIndex]);
         }
                 
         // Change currentNode informations
