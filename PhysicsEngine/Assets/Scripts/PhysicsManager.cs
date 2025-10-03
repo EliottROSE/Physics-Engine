@@ -174,6 +174,7 @@ public class PhysicsManager : MonoBehaviour
         // left is currentNode
         Node newParentNode = new Node(currentNode.parentIndex, newLeftIndex, -1, false, bounds.Count - 1);
         boundsTree.Add(newParentNode);
+        int newParentIndex = boundsTree.Count - 1;
         if (currentNode.parentIndex == -1)
         {
             root = boundsTree.Count - 1;
@@ -183,8 +184,8 @@ public class PhysicsManager : MonoBehaviour
             if (isLeft)
                 boundsTree[currentNode.parentIndex].leftIndex = boundsTree.Count - 1;
             else
-                boundsTree[currentNode.parentIndex].rightIndex = boundsTree.Count - 1; 
-            bounds[boundsTree[currentNode.parentIndex].AABBIndex].SetAABB(bounds[boundsTree[boundsTree[currentNode.parentIndex].leftIndex].AABBIndex], bounds[boundsTree[boundsTree[currentNode.parentIndex].rightIndex].AABBIndex]);
+                boundsTree[currentNode.parentIndex].rightIndex = boundsTree.Count - 1;
+            //bounds[boundsTree[currentNode.parentIndex].AABBIndex].SetAABB(bounds[boundsTree[boundsTree[currentNode.parentIndex].leftIndex].AABBIndex], bounds[boundsTree[boundsTree[currentNode.parentIndex].rightIndex].AABBIndex]);
         }
                 
         // Change currentNode informations
@@ -195,5 +196,17 @@ public class PhysicsManager : MonoBehaviour
         Node newBoundNode = new Node(boundsTree.Count - 1, -1, -1, true, bounds.Count - 1);
         boundsTree.Add(newBoundNode);
         newParentNode.rightIndex = boundsTree.Count - 1;
+        UpdateFromChildren(newParentIndex);
+    }
+
+    private void UpdateFromChildren(int nodeIndex)
+    {
+        AABB leftBound = bounds[boundsTree[boundsTree[nodeIndex].leftIndex].AABBIndex];
+        AABB rightBound = bounds[boundsTree[boundsTree[nodeIndex].rightIndex].AABBIndex];
+        bounds[boundsTree[nodeIndex].AABBIndex].SetAABB(leftBound, rightBound);
+        //bounds[boundsTree[boundsTree[nodeIndex].parentIndex].AABBIndex].SetAABB(bounds[boundsTree[boundsTree[boundsTree[nodeIndex].parentIndex].leftIndex].AABBIndex], bounds[boundsTree[boundsTree[boundsTree[nodeIndex].parentIndex].rightIndex].AABBIndex]);
+        int parentIndex = boundsTree[nodeIndex].parentIndex;
+        if (parentIndex != -1)
+            UpdateFromChildren(parentIndex);
     }
 }
