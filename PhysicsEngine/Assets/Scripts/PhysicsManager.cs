@@ -116,6 +116,9 @@ public class PhysicsManager : MonoBehaviour
         {
             InsertAABB(bound);
         }
+
+        Debug.Log(boundsTree.Count);
+        Debug.Log(bounds.Count);
     }
 
     public void InsertAABB(AABB bound)
@@ -123,8 +126,6 @@ public class PhysicsManager : MonoBehaviour
         // If the tree is empty the first bound become the root
         if (boundsTree.Count == 0)
         {
-            bounds.Add(bound);
-
             Node node = new Node(-1, -1, -1, true, 0);
             boundsTree.Add(node);
             return;
@@ -159,7 +160,7 @@ public class PhysicsManager : MonoBehaviour
         // Special case if process root
         if (currentNode.parentIndex == -1)
         {
-            newLeftIndex = boundsTree[root].leftIndex;
+            newLeftIndex = 0;
         }
         else
         {
@@ -173,7 +174,15 @@ public class PhysicsManager : MonoBehaviour
         // left is currentNode
         Node newParentNode = new Node(currentNode.parentIndex, newLeftIndex, -1, false, bounds.Count - 1);
         boundsTree.Add(newParentNode);
-
+        if (currentNode.parentIndex == -1)
+        {
+            root = boundsTree.Count - 1;
+        }
+        else
+        {
+            
+        }
+                
         // Change currentNode informations
         currentNode.parentIndex = boundsTree.Count - 1;
 
@@ -181,5 +190,6 @@ public class PhysicsManager : MonoBehaviour
         bounds.Add(bound);
         Node newBoundNode = new Node(boundsTree.Count - 1, -1, -1, true, bounds.Count - 1);
         boundsTree.Add(newBoundNode);
+        newParentNode.rightIndex = boundsTree.Count - 1;
     }
 }
