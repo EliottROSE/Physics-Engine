@@ -69,7 +69,6 @@ public class PhysicsManager : MonoBehaviour
             AABB bound = collider.GetAABB();
 
             collidersBounds.Add(bound);
-            bounds.Add(bound);
         }
 
         BuildAABBTree();
@@ -88,10 +87,11 @@ public class PhysicsManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        foreach (AABB bound in bounds)
-        {
-            //bound.DrawAABB();
-        }
+        bounds.Clear();
+        boundsTree.Clear();
+        root = 0;
+
+        BuildAABBTree();
     }
 
     public void BuildAABBTree()
@@ -128,6 +128,7 @@ public class PhysicsManager : MonoBehaviour
         {
             Node node = new Node(-1, -1, -1, true, 0);
             boundsTree.Add(node);
+            bounds.Add(bound);
             return;
         }
 
