@@ -69,7 +69,6 @@ public class PhysicsManager : MonoBehaviour
             AABB bound = collider.GetAABB();
 
             collidersBounds.Add(bound);
-            bounds.Add(bound);
         }
 
         BuildAABBTree();
@@ -79,9 +78,26 @@ public class PhysicsManager : MonoBehaviour
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
-        foreach (AABB bound in bounds)
+        //foreach (AABB bound in bounds)
+        //{
+        //        Gizmos.DrawWireCube(bound.GetPosition(), bound.GetScale());
+        //    if (bound)
+        //    else
+        //        Gizmos.DrawWireCube(bound.GetPosition(), bound.GetScale(), Color.green);
+        //}
+        
+        foreach (Node node in boundsTree)
         {
-            Gizmos.DrawWireCube(bound.GetPosition(), bound.GetScale());
+            if (node.isLeaf)
+            {
+                Gizmos.color = Color.red;
+                Gizmos.DrawWireCube(bounds[node.AABBIndex].GetPosition(), bounds[node.AABBIndex].GetScale());
+            }
+            else
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawWireCube(bounds[node.AABBIndex].GetPosition(), bounds[node.AABBIndex].GetScale());
+            }
         }
     }
 
@@ -128,6 +144,7 @@ public class PhysicsManager : MonoBehaviour
         {
             Node node = new Node(-1, -1, -1, true, 0);
             boundsTree.Add(node);
+            bounds.Add(bound);
             return;
         }
 
