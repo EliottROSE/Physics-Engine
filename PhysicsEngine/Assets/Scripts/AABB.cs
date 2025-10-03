@@ -65,7 +65,7 @@ public class AABB
     {
         float unionVolume = GetUnionVolume(aabb1, aabb2);
         float volumeCost = unionVolume - aabb1.GetVolume();
-        float cost = Mathf.Lerp(volumeCost, Vector3.Distance(aabb1.GetPosition(), aabb2.GetPosition()), 0.5f);
+        float cost = Mathf.Lerp(volumeCost, Vector3.Distance(aabb1.GetPosition(), aabb2.GetPosition()), 0.75f);
         return cost;
     }
     
