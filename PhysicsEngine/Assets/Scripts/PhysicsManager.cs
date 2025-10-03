@@ -185,7 +185,6 @@ public class PhysicsManager : MonoBehaviour
                 boundsTree[currentNode.parentIndex].leftIndex = boundsTree.Count - 1;
             else
                 boundsTree[currentNode.parentIndex].rightIndex = boundsTree.Count - 1;
-            //bounds[boundsTree[currentNode.parentIndex].AABBIndex].SetAABB(bounds[boundsTree[boundsTree[currentNode.parentIndex].leftIndex].AABBIndex], bounds[boundsTree[boundsTree[currentNode.parentIndex].rightIndex].AABBIndex]);
         }
                 
         // Change currentNode informations
@@ -204,7 +203,6 @@ public class PhysicsManager : MonoBehaviour
         AABB leftBound = bounds[boundsTree[boundsTree[nodeIndex].leftIndex].AABBIndex];
         AABB rightBound = bounds[boundsTree[boundsTree[nodeIndex].rightIndex].AABBIndex];
         bounds[boundsTree[nodeIndex].AABBIndex].SetAABB(leftBound, rightBound);
-        //bounds[boundsTree[boundsTree[nodeIndex].parentIndex].AABBIndex].SetAABB(bounds[boundsTree[boundsTree[boundsTree[nodeIndex].parentIndex].leftIndex].AABBIndex], bounds[boundsTree[boundsTree[boundsTree[nodeIndex].parentIndex].rightIndex].AABBIndex]);
         int parentIndex = boundsTree[nodeIndex].parentIndex;
         if (parentIndex != -1)
             UpdateFromChildren(parentIndex);
