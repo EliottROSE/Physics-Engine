@@ -15,12 +15,101 @@ public class PhysicsManager : MonoBehaviour
         get
         {
             if (instance == null)
-                instance = FindObjectOfType<PhysicsManager>();
+                instance = FindFirstObjectByType<PhysicsManager>();
             return instance;
         }
     }
 
     #endregion
+
+    public class Triangle
+    {
+        public Vector3 a, b, c;
+        
+        public Triangle(Vector3 a, Vector3 b, Vector3 c)
+        {
+            this.a = a;
+            this.b = b;
+            this.c = c;
+        }
+
+        public Vector3 GetNormal()
+        {
+            return Vector3.Cross(b - a, c - a).normalized;
+        }
+    }
+
+    public class MinkowskiTetrahedron
+    {
+        public List<Triangle> faces = new List<Triangle>();
+        
+        public MinkowskiTetrahedron(Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+        {
+            faces.Add(new Triangle(a, b, c));
+            faces.Add(new Triangle(b, c, d));
+            faces.Add(new Triangle(c, d, a));
+            faces.Add(new Triangle(a, b, d));
+        }
+
+        private Triangle MakeFace(Vector3 a, Vector3 b, Vector3 c, Vector3 opposite)
+        {
+            Vector3 n = Vector3.Cross(b - a, c - a);
+            if (Vector3.Dot(n, opposite - a) < 0f)
+                return new Triangle(a, c, b);
+            return new Triangle(a, b, c);
+        }
+
+        public bool IsOriginInsideMinkowskiTetrahedron()
+        {
+            foreach (Triangle face in faces)
+            {
+                Vector3 n = face.GetNormal();
+                float dot = Vector3.Dot(n, -face.a);
+                if (dot > 0f)
+                    return false;
+            }
+            return true;
+        }
+
+        public void Reshape(CustomCollider collider1, CustomCollider collider2)
+        {
+            Triangle chosenFace = null;
+            Vector3 chosenNormal = Vector3.zero;
+            float minDistance = float.MaxValue;
+
+            foreach (Triangle face in faces)
+            {
+                Vector3 n = face.GetNormal();
+                float dot = Vector3.Dot(n, -face.a);
+                if (dot > 0f)
+                {
+                    float dist = Mathf.Abs(dot);
+                    if (dist < minDistance)
+                    {
+                        minDistance = dist;
+                        chosenFace = face;
+                        chosenNormal = n;
+                    }
+                }
+            }
+
+            if (chosenFace == null)
+                return;
+            
+            if (chosenNormal.sqrMagnitude < 1e-8f)
+                return;
+
+            Vector3 newPoint = GetSupport(collider1, collider2, chosenNormal);
+            if (Vector3.Dot(newPoint, chosenNormal) <= 0f)
+                return;
+            
+            faces.Clear();
+            faces.Add(MakeFace(chosenFace.a, chosenFace.b, newPoint, chosenFace.c));
+            faces.Add(MakeFace(chosenFace.b, chosenFace.c, newPoint, chosenFace.a));
+            faces.Add(MakeFace(chosenFace.c, chosenFace.a, newPoint, chosenFace.b));
+            faces.Add(MakeFace(chosenFace.a, chosenFace.b, chosenFace.c, newPoint));
+        }
+    }
 
     public class Node
     {
@@ -68,26 +157,47 @@ public class PhysicsManager : MonoBehaviour
     {
         if (maxIterations == 0)
             return false;
+
+        Vector3 direction = Vector3.right;
         
-        Vector3 point1 = GetSupport(collider1, collider2, Vector3.right);
-        Vector3 point2 = GetSupport(collider1, collider2, Vector3.zero - point1);
+        Vector3 point1 = GetSupport(collider1, collider2, direction);
+
+        direction = -point1;
+        direction = (direction.sqrMagnitude > Mathf.Epsilon) ? direction : Vector3.right;
+        
+        Vector3 point2 = GetSupport(collider1, collider2, direction);
         
         Vector3 lineNormal = Vector3.Cross(point1, point2);
-        if (Vector3.Dot(lineNormal, -point1) < 0f)
+        if (Vector3.Dot(lineNormal, -point1) < 0f) 
             lineNormal = -lineNormal;
+        
+        if (lineNormal.sqrMagnitude < 1e-8f)
+            return false;
         
         lineNormal.Normalize();
         
         Vector3 point3 = GetSupport(collider1, collider2, lineNormal);
         
         Vector3 faceNormal = Vector3.Cross(point2 - point1, point3 - point1);
-        if (Vector3.Dot(faceNormal, -point1) < 0f)
+        if (Vector3.Dot(faceNormal, -point1) < 0f) 
             faceNormal = -faceNormal;
+        
+        if (faceNormal.sqrMagnitude < 1e-8f)
+            return false;
+        
         faceNormal.Normalize();
         
         Vector3 point4 = GetSupport(collider1, collider2, faceNormal);
         
+        MinkowskiTetrahedron tetrahedron = new MinkowskiTetrahedron(point1, point2, point3, point4);
         
+        for (int i = 0; i < maxIterations; ++i)
+        {
+            if (tetrahedron.IsOriginInsideMinkowskiTetrahedron())
+                return true;
+
+            tetrahedron.Reshape(collider1, collider2);
+        }
         
         return false;
     }
@@ -142,6 +252,9 @@ public class PhysicsManager : MonoBehaviour
         root = 0;
 
         BuildAABBTree();
+        
+        if (CheckGJKCollision(colliders[0], colliders[1], 16))
+            Debug.Log("GJK Collision");
     }
 
     public void BuildAABBTree()
