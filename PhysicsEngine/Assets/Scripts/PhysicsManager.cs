@@ -113,6 +113,8 @@ public class PhysicsManager : MonoBehaviour
 
         foreach (CustomCollider collider in colliders)
         {
+            if (!collider.gameObject.activeInHierarchy)
+                continue;
             collider.InitAABB();
             AABB bound = collider.GetAABB();
 
@@ -140,12 +142,24 @@ public class PhysicsManager : MonoBehaviour
         }
     }
 
-    // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
+        //for (int i = 0; i < colliders.Count; i++)
+        //{
+        //    //colliders[i].UpdateCollider(); 
+        //    collidersBounds[i] = colliders[i].GetAABB();
+        //}
         
+        boundsTree.Clear();
+        bounds.Clear();
+        root = 0;
+        availableBoundsTreeIndexes.Clear();
+        availableBoundsIndexes.Clear();
+        BuildAABBTree();
     }
 
+    // AABB Tree functions
+    #region Tree
     public void BuildAABBTree()
     {
         if (collidersBounds.Count == 0)
@@ -191,7 +205,7 @@ public class PhysicsManager : MonoBehaviour
         {
             float leftValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.leftIndex)], bound);
             float rightValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.rightIndex)], bound);
-
+            
             if (leftValue < rightValue)
             {
                 currentNode = boundsTree[currentNode.leftIndex];
@@ -201,7 +215,7 @@ public class PhysicsManager : MonoBehaviour
                 currentNode = boundsTree[currentNode.rightIndex];
                 isLeft = false;
             }
-        }
+        } //
 
         // New parent abstract detection zone
         AABB newParentAABB = new AABB();
@@ -332,7 +346,10 @@ public class PhysicsManager : MonoBehaviour
         if (parentIndex != -1)
             UpdateFromChildren(parentIndex);
     }
+    #endregion
 
+    // AABB Tree helper functions, add to list, get index, etc...
+    #region TreeHelperFunctions
     public int GetBoundIndexFromTree(int treeIndex)
     {
         if (treeIndex < 0 || treeIndex >= boundsTree.Count)
@@ -392,5 +409,19 @@ public class PhysicsManager : MonoBehaviour
         bounds[index] = bound;
         return index;
     }
+    #endregion
     
+    #region MainCollisionFunctions
+
+    public void DetectCollisions()
+    {
+        List<CollisionPair> pairs = new List<CollisionPair>();
+        
+        Node rootNode = boundsTree[root];
+        
+        
+        
+    }
+    
+    #endregion
 }

@@ -31,6 +31,22 @@ public class CustomCollider : MonoBehaviour
         scale = transform.localScale;
         rotation = transform.rotation;
     }
+
+    //public void OnEnable()
+    //{
+    //    if (PhysicsManager.Instance != null && Application.isPlaying)
+    //    {
+    //        PhysicsManager.Instance.InsertAABB(aabb);
+    //    }
+    //}
+    //
+    //public void OnDisable()
+    //{
+    //    if (PhysicsManager.Instance != null && Application.isPlaying)
+    //    {
+    //        PhysicsManager.Instance.RemoveAABB(aabb);
+    //    }
+    //}
     #endregion
     
     #region Getter

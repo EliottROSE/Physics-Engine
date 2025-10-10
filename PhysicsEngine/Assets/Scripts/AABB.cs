@@ -79,8 +79,17 @@ public class AABB
     {
         float unionVolume = GetUnionVolume(aabb1, aabb2);
         float volumeCost = unionVolume - aabb1.GetVolume();
-        float cost = Mathf.Lerp(volumeCost, Vector3.Distance(aabb1.GetPosition(), aabb2.GetPosition()), 0.75f);
+        float cost = Mathf.Lerp(volumeCost, Vector3.Distance(aabb1.GetPosition(), aabb2.GetPosition()), 0.5f);
         return cost;
+        
+        //float unionVolume = GetUnionVolume(aabb1, aabb2);
+        //float volumeCost = unionVolume - aabb1.GetVolume();
+        //
+        //float distance = Vector3.Distance(aabb1.GetPosition(), aabb2.GetPosition());
+        //float normalizedDistance = distance / (aabb1.GetScale().magnitude + aabb2.GetScale().magnitude);
+        //
+        //float cost = volumeCost + normalizedDistance * volumeCost;
+        //return cost;
     }
     
     public static bool CheckAABBCollision(AABB A, AABB B)
