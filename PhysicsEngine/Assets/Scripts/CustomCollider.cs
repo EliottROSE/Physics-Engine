@@ -17,13 +17,12 @@ public class CustomCollider : MonoBehaviour
     #region MonoBehaviour
     protected virtual void Start()
     {
-        /*bool sucess = gameObject.TryGetComponent<AABB>(out aabb);
-        if (!sucess)
-            aabb = gameObject.AddComponent<AABB>();*/
-        
         position = transform.position;
         scale = transform.localScale;
         rotation = transform.rotation;
+        
+        aabb = new AABB();
+        aabb.SetAABB(transform.position, transform.localScale);
     }
 
     protected virtual void Update()

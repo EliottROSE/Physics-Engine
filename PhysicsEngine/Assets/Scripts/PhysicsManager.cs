@@ -23,6 +23,7 @@ public class PhysicsManager : MonoBehaviour
 
     #endregion
 
+    #region Node
     public class Node
     {
         public int parentIndex; // -1 if root
@@ -44,7 +45,17 @@ public class PhysicsManager : MonoBehaviour
             AABBIndex = AABB;
         }
     }
+    #endregion
 
+    struct CollisionPair
+    {
+        Rigidbody body1;
+        Rigidbody body2;
+        
+        Vector3 point; // Point of collision
+        Vector3 normal; // normal of collision point
+        float penetration; // how far the rigidbodies enter in collision
+    }
     // Existing collider in the scene
     private List<CustomCollider> colliders = new List<CustomCollider>();
 
@@ -114,15 +125,6 @@ public class PhysicsManager : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        Gizmos.color = Color.red;
-        //foreach (AABB bound in bounds)
-        //{
-        //        Gizmos.DrawWireCube(bound.GetPosition(), bound.GetScale());
-        //    if (bound)
-        //    else
-        //        Gizmos.DrawWireCube(bound.GetPosition(), bound.GetScale(), Color.green);
-        //}
-        
         foreach (Node node in boundsTree)
         {
             if (node != null && node.isLeaf)
@@ -141,11 +143,7 @@ public class PhysicsManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        //bounds.Clear();
-        //boundsTree.Clear();
-        //root = 0;
-
-        //BuildAABBTree();
+        
     }
 
     public void BuildAABBTree()
