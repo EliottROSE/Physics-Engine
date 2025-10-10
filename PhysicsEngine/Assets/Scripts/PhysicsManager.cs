@@ -59,6 +59,39 @@ public class PhysicsManager : MonoBehaviour
     // Index of the root 
     private int root;
 
+    public static Vector3 GetSupport(CustomCollider collider1, CustomCollider collider2, Vector3 direction)
+    {
+        return collider1.GetSupport(direction) - collider2.GetSupport(-direction);
+    }
+
+    public static bool CheckGJKCollision(CustomCollider collider1, CustomCollider collider2, uint maxIterations)
+    {
+        if (maxIterations == 0)
+            return false;
+        
+        Vector3 point1 = GetSupport(collider1, collider2, Vector3.right);
+        Vector3 point2 = GetSupport(collider1, collider2, Vector3.zero - point1);
+        
+        Vector3 lineNormal = Vector3.Cross(point1, point2);
+        if (Vector3.Dot(lineNormal, -point1) < 0f)
+            lineNormal = -lineNormal;
+        
+        lineNormal.Normalize();
+        
+        Vector3 point3 = GetSupport(collider1, collider2, lineNormal);
+        
+        Vector3 faceNormal = Vector3.Cross(point2 - point1, point3 - point1);
+        if (Vector3.Dot(faceNormal, -point1) < 0f)
+            faceNormal = -faceNormal;
+        faceNormal.Normalize();
+        
+        Vector3 point4 = GetSupport(collider1, collider2, faceNormal);
+        
+        
+        
+        return false;
+    }
+
     void Start()
     {
         colliders = FindObjectsOfType<CustomCollider>().ToList();
