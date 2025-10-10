@@ -47,14 +47,14 @@ public class PhysicsManager : MonoBehaviour
     }
     #endregion
 
-    struct CollisionPair
+    public struct CollisionPair
     {
-        Rigidbody body1;
-        Rigidbody body2;
+        public Rigidbody body1;
+        public Rigidbody body2;
         
-        Vector3 point; // Point of collision
-        Vector3 normal; // normal of collision point
-        float penetration; // how far the rigidbodies enter in collision
+        public Vector3 point; // Point of collision
+        public Vector3 normal; // normal of collision point
+        public float penetration; // how far the rigidbodies enter in collision
     }
     // Existing collider in the scene
     private List<CustomCollider> colliders = new List<CustomCollider>();
@@ -156,6 +156,7 @@ public class PhysicsManager : MonoBehaviour
         availableBoundsTreeIndexes.Clear();
         availableBoundsIndexes.Clear();
         BuildAABBTree();
+        List<CollisionPair> pairs = DetectCollisions();
     }
 
     // AABB Tree functions
@@ -413,15 +414,51 @@ public class PhysicsManager : MonoBehaviour
     
     #region MainCollisionFunctions
 
-    public void DetectCollisions()
+    public List<CollisionPair> DetectCollisions()
     {
-        List<CollisionPair> pairs = new List<CollisionPair>();
+        List<(int, int)> bpPairs = new List<(int, int)>();
         
-        Node rootNode = boundsTree[root];
-        
-        
-        
+        if (root == -1 || boundsTree.Count == 0)
+            return new List<CollisionPair>();
+
+        DetectCollisionPair(root, root, bpPairs);
+
+        List<CollisionPair> colliderPairs = new List<CollisionPair>();
+        foreach ((int a, int b) in bpPairs)
+        {
+            Debug.Log("AABB : " + bounds[a] + "collide with AABB : " + bounds[b]);
+            //AABB aabbA = bounds[boundsTree[a].AABBIndex];
+            //AABB aabbB = bounds[boundsTree[b].AABBIndex];
+            //CustomCollider colliderA = colliders.Find(c => c.GetAABB() == aabbA);
+            //CustomCollider colliderB = colliders.Find(c => c.GetAABB() == aabbB);
+            //colliderPairs.Add((colliderA, colliderB));
+        }
+
+        return colliderPairs;
     }
-    
+
+    public void DetectCollisionPair(int nodeIndex1, int nodeIndex2, List<(int, int)> outPairs)
+    {
+        Node node1 = boundsTree[nodeIndex1];
+        Node node2 = boundsTree[nodeIndex2];
+        
+        if ((node1.isLeaf && node2.isLeaf) && AABB.CheckAABBCollision(bounds[node1.AABBIndex], bounds[node2.AABBIndex]))
+        {
+            outPairs.Add((nodeIndex1, nodeIndex2));
+            return;
+        }
+        
+        if (node1.isLeaf || (!node2.isLeaf && bounds[node2.AABBIndex].GetVolume() > bounds[node1.AABBIndex].GetVolume()))
+        {
+            DetectCollisionPair(nodeIndex1, node2.leftIndex, outPairs);
+            DetectCollisionPair(nodeIndex1, node2.rightIndex, outPairs);
+        }
+        else
+        {
+            DetectCollisionPair(node1.leftIndex, nodeIndex2, outPairs);
+            DetectCollisionPair(node1.rightIndex, nodeIndex2, outPairs);
+        }
+
+    }
     #endregion
 }
