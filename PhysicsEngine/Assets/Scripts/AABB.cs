@@ -25,6 +25,20 @@ public class AABB
         maxPos = Vector3.Max(aabb1.GetAABBMaxPos(), aabb2.GetAABBMaxPos());
     }
 
+    public void SetAABB(List<Vector3> points)
+    {
+        if (points == null || points.Count == 0)
+            throw new ArgumentException("Points list cannot be null or empty.");
+        
+        minPos = points[0];
+        maxPos = points[0];
+        for (int i = 1; i < points.Count; i++)
+        {
+            minPos = Vector3.Min(minPos, points[i]);
+            maxPos = Vector3.Max(maxPos, points[i]);
+        }
+    }
+
     public Vector3 GetPosition()
     {
         return (minPos + maxPos) * 0.5f;

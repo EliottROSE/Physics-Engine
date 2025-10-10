@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class CustomCollider : MonoBehaviour
 {   
@@ -9,10 +10,12 @@ public class CustomCollider : MonoBehaviour
     protected Quaternion rotation = Quaternion.identity;
     protected Vector3 scale = Vector3.one;
     
-    private AABB aabb;
+    protected List<Vector3> points = new List<Vector3>();
+    
+    protected AABB aabb;
 
     #region MonoBehaviour
-    private void Start()
+    protected virtual void Start()
     {
         /*bool sucess = gameObject.TryGetComponent<AABB>(out aabb);
         if (!sucess)
@@ -23,12 +26,11 @@ public class CustomCollider : MonoBehaviour
         rotation = transform.rotation;
     }
 
-    private void Update()
+    protected virtual void Update()
     {
         position = transform.position;
         scale = transform.localScale;
         rotation = transform.rotation;
-        aabb.SetAABB(position, scale);
     }
     #endregion
     
@@ -39,32 +41,28 @@ public class CustomCollider : MonoBehaviour
     public AABB GetAABB() { return aabb; return gameObject.GetComponentInParent<AABB>(); }
     #endregion
 
-    public void InitAABB()
+    public virtual void InitAABB()
     {
         aabb = new AABB();
         aabb.SetAABB(transform.position, transform.localScale);
     }
-    
-    public void OnDisable()
-    {
-        PhysicsManager.Instance.RemoveAABB(aabb);
-    }
-}
 
-public class CustomBoxCollider : CustomCollider
-{
-    private Vector3 minPos;
-    private Vector3 maxPos;
-    
-    CustomBoxCollider(Vector3 position, Quaternion rotation, Vector3 scale)
+    public virtual Vector3 GetSupport(Vector3 direction)
     {
-        minPos = position - 1 / 2 * (scale);
-        maxPos = position + 1 / 2 * (scale);
-    }
+        Vector3 support =  Vector3.zero;
+        float maxProjection = Mathf.NegativeInfinity;
 
-    private void Start()
-    {
+        foreach (Vector3 point in points)
+        {
+            float projection = Vector3.Dot(point, direction);
+
+            if (projection > maxProjection)
+            {
+                maxProjection = projection;
+                support = point;
+            }
+        }
         
+        return support;
     }
-    
 }
