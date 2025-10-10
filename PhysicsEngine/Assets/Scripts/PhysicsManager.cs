@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting.FullSerializer.Internal;
 using UnityEditor.Rendering;
 using UnityEngine;
 
@@ -55,6 +56,9 @@ public class PhysicsManager : MonoBehaviour
 
     // AABB tree
     private List<Node> boundsTree = new List<Node>();
+    
+    List<int> availableBoundsTreeIndexes = new List<int>();
+    List<int> availableBoundsIndexes = new List<int>();
 
     // Index of the root 
     private int root;
@@ -88,12 +92,12 @@ public class PhysicsManager : MonoBehaviour
         
         foreach (Node node in boundsTree)
         {
-            if (node.isLeaf)
+            if (node != null && node.isLeaf)
             {
                 Gizmos.color = Color.red;
                 Gizmos.DrawWireCube(bounds[node.AABBIndex].GetPosition(), bounds[node.AABBIndex].GetScale());
             }
-            else
+            else if (node != null && !node.isLeaf)
             {
                 Gizmos.color = Color.green;
                 Gizmos.DrawWireCube(bounds[node.AABBIndex].GetPosition(), bounds[node.AABBIndex].GetScale());
@@ -104,11 +108,11 @@ public class PhysicsManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        bounds.Clear();
-        boundsTree.Clear();
-        root = 0;
+        //bounds.Clear();
+        //boundsTree.Clear();
+        //root = 0;
 
-        BuildAABBTree();
+        //BuildAABBTree();
     }
 
     public void BuildAABBTree()
@@ -144,18 +148,18 @@ public class PhysicsManager : MonoBehaviour
         if (boundsTree.Count == 0)
         {
             Node node = new Node(-1, -1, -1, true, 0);
-            boundsTree.Add(node);
-            bounds.Add(bound);
+            int nodeIndex = AddAndReturnNodeIndex(node);
+            AddBound(bound);
+            root = nodeIndex;
             return;
         }
-
 
         Node currentNode = boundsTree[root];
         bool isLeft = true;
         while (!currentNode.isLeaf)
         {
-            float leftValue = AABB.GetUnionCost(bounds[boundsTree[currentNode.leftIndex].AABBIndex], bound);
-            float rightValue = AABB.GetUnionCost(bounds[boundsTree[currentNode.rightIndex].AABBIndex], bound);
+            float leftValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.leftIndex)], bound);
+            float rightValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.rightIndex)], bound);
 
             if (leftValue < rightValue)
             {
@@ -171,14 +175,14 @@ public class PhysicsManager : MonoBehaviour
         // New parent abstract detection zone
         AABB newParentAABB = new AABB();
         newParentAABB.SetAABB(bounds[currentNode.AABBIndex], bound);
-        bounds.Add(newParentAABB);
+        int newParentAABBIndex = AddAndReturnBoundIndex(newParentAABB);
 
         int newLeftIndex = 0;
-        
+
         // Special case if process root
         if (currentNode.parentIndex == -1)
         {
-            newLeftIndex = 0;
+            newLeftIndex = root;
         }
         else
         {
@@ -188,41 +192,174 @@ public class PhysicsManager : MonoBehaviour
                 newLeftIndex = boundsTree[currentNode.parentIndex].rightIndex;
         }
 
-
         // left is currentNode
-        Node newParentNode = new Node(currentNode.parentIndex, newLeftIndex, -1, false, bounds.Count - 1);
-        boundsTree.Add(newParentNode);
-        int newParentIndex = boundsTree.Count - 1;
+        Node newParentNode = new Node(currentNode.parentIndex, newLeftIndex, -1, false, newParentAABBIndex);
+        int newParentNodeIndex = AddAndReturnNodeIndex(newParentNode);
+
         if (currentNode.parentIndex == -1)
         {
-            root = boundsTree.Count - 1;
+            root = newParentNodeIndex;
         }
         else
         {
             if (isLeft)
-                boundsTree[currentNode.parentIndex].leftIndex = boundsTree.Count - 1;
+                boundsTree[currentNode.parentIndex].leftIndex = newParentNodeIndex;
             else
-                boundsTree[currentNode.parentIndex].rightIndex = boundsTree.Count - 1;
+                boundsTree[currentNode.parentIndex].rightIndex = newParentNodeIndex;
         }
-                
+
         // Change currentNode informations
-        currentNode.parentIndex = boundsTree.Count - 1;
+        currentNode.parentIndex = newParentNodeIndex;
 
         // new bound node
-        bounds.Add(bound);
-        Node newBoundNode = new Node(boundsTree.Count - 1, -1, -1, true, bounds.Count - 1);
-        boundsTree.Add(newBoundNode);
-        newParentNode.rightIndex = boundsTree.Count - 1;
-        UpdateFromChildren(newParentIndex);
+        int newBoundIndex = AddAndReturnBoundIndex(bound);
+        Node newBoundNode = new Node(newParentNodeIndex, -1, -1, true, newBoundIndex);
+        int newBoundNodeIndex = AddAndReturnNodeIndex(newBoundNode);
+        boundsTree[newParentNodeIndex].rightIndex = newBoundNodeIndex;
+
+        UpdateFromChildren(newParentNodeIndex);
     }
 
+    public void RemoveAABB(AABB bound)
+    {
+        int nodeIndex = -1;
+        bool isLeft = true;
+
+        // Find the leaf node corresponding to the AABB
+        for (int i = 0; i < boundsTree.Count; i++)
+        {
+            Node node = boundsTree[i];
+            if (node != null && node.isLeaf && bounds[node.AABBIndex] == bound)
+            {
+                nodeIndex = i;
+                if (node.parentIndex != -1 && boundsTree[node.parentIndex].rightIndex == nodeIndex)
+                    isLeft = false;
+                break;
+            }
+        }
+
+        if (nodeIndex == -1)
+            return; // Not found
+
+        Node leafNode = boundsTree[nodeIndex];
+        int oldParentIndex = leafNode.parentIndex;
+
+        if (oldParentIndex == -1)
+        {
+            // Only one node in the tree, remove root
+            bounds[leafNode.AABBIndex] = null;
+            availableBoundsIndexes.Add(leafNode.AABBIndex);
+            boundsTree[nodeIndex] = null;
+            availableBoundsTreeIndexes.Add(nodeIndex);
+            root = -1;
+            return;
+        }
+
+        Node oldParent = boundsTree[oldParentIndex];
+        int siblingIndex = (oldParent.leftIndex == nodeIndex) ? oldParent.rightIndex : oldParent.leftIndex;
+        Node sibling = boundsTree[siblingIndex];
+
+        // Update sibling parent
+        sibling.parentIndex = oldParent.parentIndex;
+
+        if (oldParent.parentIndex == -1)
+        {
+            // Old parent was root
+            root = siblingIndex;
+        }
+        else
+        {
+            Node grandParent = boundsTree[oldParent.parentIndex];
+            if (grandParent.leftIndex == oldParentIndex)
+                grandParent.leftIndex = siblingIndex;
+            else
+                grandParent.rightIndex = siblingIndex;
+        }
+
+        // Remove old parent + AABB
+        bounds[oldParent.AABBIndex] = null;
+        availableBoundsIndexes.Add(oldParent.AABBIndex);
+        boundsTree[oldParentIndex] = null;
+        availableBoundsTreeIndexes.Add(oldParentIndex);
+
+        // Remove leaf node + AABB
+        bounds[leafNode.AABBIndex] = null;
+        availableBoundsIndexes.Add(leafNode.AABBIndex);
+        boundsTree[nodeIndex] = null;
+        availableBoundsTreeIndexes.Add(nodeIndex);
+
+        if (boundsTree[siblingIndex].parentIndex != -1)
+            UpdateFromChildren(boundsTree[siblingIndex].parentIndex);
+    }
+    
     private void UpdateFromChildren(int nodeIndex)
     {
-        AABB leftBound = bounds[boundsTree[boundsTree[nodeIndex].leftIndex].AABBIndex];
-        AABB rightBound = bounds[boundsTree[boundsTree[nodeIndex].rightIndex].AABBIndex];
+        AABB leftBound = bounds[GetBoundIndexFromTree(boundsTree[nodeIndex].leftIndex)];
+        AABB rightBound = bounds[GetBoundIndexFromTree(boundsTree[nodeIndex].rightIndex)];;
         bounds[boundsTree[nodeIndex].AABBIndex].SetAABB(leftBound, rightBound);
         int parentIndex = boundsTree[nodeIndex].parentIndex;
         if (parentIndex != -1)
             UpdateFromChildren(parentIndex);
     }
+
+    public int GetBoundIndexFromTree(int treeIndex)
+    {
+        if (treeIndex < 0 || treeIndex >= boundsTree.Count)
+        {
+            Debug.LogError("Invalid tree index");    
+            return -1;
+        }
+        
+        return boundsTree[treeIndex].AABBIndex;
+    }
+
+    public void AddNode(Node node)
+    {
+        if (availableBoundsTreeIndexes.Count == 0)
+        {
+            boundsTree.Add(node);
+            return;
+        }
+        boundsTree[availableBoundsTreeIndexes[0]] = node;
+        availableBoundsTreeIndexes.RemoveAt(0);
+    }
+
+    public void AddBound(AABB bound)
+    {
+        if (availableBoundsIndexes.Count == 0)
+        {
+            bounds.Add(bound);
+            return;
+        }
+        bounds[availableBoundsIndexes[0]] = bound;
+        availableBoundsIndexes.RemoveAt(0);
+    }
+    public int AddAndReturnNodeIndex(Node node)
+    {
+        if (availableBoundsTreeIndexes.Count == 0)
+        {
+            boundsTree.Add(node);
+            return boundsTree.Count - 1;
+        }
+
+        int index = availableBoundsTreeIndexes[0];
+        availableBoundsTreeIndexes.RemoveAt(0);
+        boundsTree[index] = node;
+        return index;
+    }
+
+    public int AddAndReturnBoundIndex(AABB bound)
+    {
+        if (availableBoundsIndexes.Count == 0)
+        {
+            bounds.Add(bound);
+            return bounds.Count - 1;
+        }
+
+        int index = availableBoundsIndexes[0];
+        availableBoundsIndexes.RemoveAt(0);
+        bounds[index] = bound;
+        return index;
+    }
+    
 }

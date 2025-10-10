@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -42,6 +43,11 @@ public class CustomCollider : MonoBehaviour
     {
         aabb = new AABB();
         aabb.SetAABB(transform.position, transform.localScale);
+    }
+    
+    public void OnDisable()
+    {
+        PhysicsManager.Instance.RemoveAABB(aabb);
     }
 }
 
