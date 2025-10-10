@@ -18,6 +18,7 @@ public class CustomBoxCollider : CustomCollider
     {
         aabb = new AABB();
         UpdatePoints();
+        aabb.SetAABB(points);
     }
 
     protected override void Update()
