@@ -113,17 +113,22 @@ public class PhysicsManager : MonoBehaviour
 
     public static bool CheckGJKCollision(CustomCollider collider1, CustomCollider collider2, uint maxIterations)
     {
-        const float EPS = 1e-8f;
+        float colliderScaleMagnitude = Mathf.Max(
+            collider1.transform.lossyScale.magnitude,
+            collider2.transform.lossyScale.magnitude
+        );
+        
+        float eps = 1e-6f * Mathf.Max(1f, colliderScaleMagnitude);
         
         Vector3 direction = collider2.transform.position - collider1.transform.position;
-        direction = (direction.sqrMagnitude > EPS) ? direction.normalized : Vector3.right;
+        direction = (direction.sqrMagnitude > eps) ? direction.normalized : Vector3.right;
         
         Vector3 point1 = GetSupport(collider1, collider2, direction);
         if (Vector3.Dot(point1, direction) < 0)
             return false;
 
         direction = -point1;
-        direction = (direction.sqrMagnitude > EPS) ? direction : Vector3.right;
+        direction = (direction.sqrMagnitude > eps) ? direction : Vector3.right;
         
         Vector3 point2 = GetSupport(collider1, collider2, direction);
         
@@ -132,14 +137,14 @@ public class PhysicsManager : MonoBehaviour
         Vector3 lineNormal = Vector3.Cross(lineDir, -point1);
         if (Vector3.Dot(lineNormal, -point1) < 0f) 
             lineNormal = -lineNormal;
-        lineNormal = (lineNormal.sqrMagnitude > EPS) ? lineNormal.normalized : Vector3.right;
+        lineNormal = (lineNormal.sqrMagnitude > eps) ? lineNormal.normalized : Vector3.right;
         
         Vector3 point3 = GetSupport(collider1, collider2, lineNormal);
         
         Vector3 faceNormal = Vector3.Cross(point2 - point1, point3 - point1);
         if (Vector3.Dot(faceNormal, -point1) < 0f) 
             faceNormal = -faceNormal;
-        faceNormal = (faceNormal.sqrMagnitude > EPS) ? faceNormal.normalized : Vector3.right;
+        faceNormal = (faceNormal.sqrMagnitude > eps) ? faceNormal.normalized : Vector3.right;
         faceNormal.Normalize();
         
         Vector3 point4 = GetSupport(collider1, collider2, faceNormal);
@@ -173,7 +178,7 @@ public class PhysicsManager : MonoBehaviour
             Vector3 chosenNormal = chosenFace.GetNormal();
 
             Vector3 newPoint = GetSupport(collider1, collider2, chosenNormal);
-            if (Vector3.Dot(newPoint, chosenNormal) <= EPS)
+            if (Vector3.Dot(newPoint, chosenNormal) <= eps)
                 return false;
 
             faces[0] = MakeFace(chosenFace.a, chosenFace.b, newPoint, chosenFace.c);
