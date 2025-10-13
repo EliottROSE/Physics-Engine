@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.VisualScripting.FullSerializer.Internal;
@@ -142,7 +142,7 @@ public class PhysicsManager : MonoBehaviour
         }
     }
 
-    void FixedUpdate()
+    void Update()
     {
         //for (int i = 0; i < colliders.Count; i++)
         //{
@@ -416,47 +416,98 @@ public class PhysicsManager : MonoBehaviour
 
     public List<CollisionPair> DetectCollisions()
     {
-        List<(int, int)> bpPairs = new List<(int, int)>();
-        
+        List<(int, int)> broadPhasePairs = new List<(int, int)>();
+
         if (root == -1 || boundsTree.Count == 0)
             return new List<CollisionPair>();
 
-        DetectCollisionPair(root, root, bpPairs);
+        DetectCollisionPair(root, broadPhasePairs);
 
         List<CollisionPair> colliderPairs = new List<CollisionPair>();
-        foreach ((int a, int b) in bpPairs)
+
+        foreach ((int a, int b) in broadPhasePairs)
         {
-            Debug.Log("AABB : " + bounds[a] + "collide with AABB : " + bounds[b]);
-            //AABB aabbA = bounds[boundsTree[a].AABBIndex];
-            //AABB aabbB = bounds[boundsTree[b].AABBIndex];
-            //CustomCollider colliderA = colliders.Find(c => c.GetAABB() == aabbA);
-            //CustomCollider colliderB = colliders.Find(c => c.GetAABB() == aabbB);
-            //colliderPairs.Add((colliderA, colliderB));
+            Debug.Log($"AABB {a} collide with AABB {b}");
         }
 
         return colliderPairs;
     }
 
-    public void DetectCollisionPair(int nodeIndex1, int nodeIndex2, List<(int, int)> outPairs)
+    //public void DetectCollisionPairsRecursive(int nodeAIndex, int nodeBIndex, List<(int, int)> outPairs)
+    //{
+    //    // évite comparer un nœud avec lui-même si on l'appelle de façon non contrôlée
+    //    if (nodeAIndex == nodeBIndex)
+    //    {
+    //        Node n = boundsTree[nodeAIndex];
+    //        if (!n.isLeaf && n.leftIndex != -1 && n.rightIndex != -1)
+    //        {
+    //            DetectCollisionPairsRecursive(n.leftIndex, n.rightIndex, outPairs);
+    //        }
+    //        return;
+    //    }
+    //
+    //    Node a = boundsTree[nodeAIndex];
+    //    Node b = boundsTree[nodeBIndex];
+    //
+    //    // 1) culling rapide : si les AABB parents ne se chevauchent pas → rien à faire
+    //    if (!AABB.CheckAABBCollision(bounds[a.AABBIndex], bounds[b.AABBIndex]))
+    //        return;
+    //
+    //    // 2) si les deux sont feuilles -> collision possible finale
+    //    if (a.isLeaf && b.isLeaf)
+    //    {
+    //        // test leaf vs leaf (déjà fait par le culling parent mais souvent on re-test les AABB exacts des feuilles)
+    //        if (AABB.CheckAABBCollision(bounds[a.AABBIndex], bounds[b.AABBIndex]))
+    //            outPairs.Add((nodeAIndex, nodeBIndex));
+    //        return;
+    //    }
+    //
+    //    // 3) sinon, on descend
+    //    // Si A est leaf et B non -> test A vs B.left & A vs B.right
+    //    if (a.isLeaf && !b.isLeaf)
+    //    {
+    //        DetectCollisionPairsRecursive(nodeAIndex, b.leftIndex, outPairs);
+    //        DetectCollisionPairsRecursive(nodeAIndex, b.rightIndex, outPairs);
+    //        return;
+    //    }
+    //
+    //    // Si B est leaf et A non -> test A.left/B & A.right/B
+    //    if (b.isLeaf && !a.isLeaf)
+    //    {
+    //        DetectCollisionPairsRecursive(a.leftIndex, nodeBIndex, outPairs);
+    //        DetectCollisionPairsRecursive(a.rightIndex, nodeBIndex, outPairs);
+    //        return;
+    //    }
+    //
+    //    // Les deux sont non-leaf -> croisement des enfants
+    //    DetectCollisionPairsRecursive(a.leftIndex, b.leftIndex, outPairs);
+    //    DetectCollisionPairsRecursive(a.leftIndex, b.rightIndex, outPairs);
+    //    DetectCollisionPairsRecursive(a.rightIndex, b.leftIndex, outPairs);
+    //    DetectCollisionPairsRecursive(a.rightIndex, b.rightIndex, outPairs);
+    //}
+
+    // Basic half work 
+    public void DetectCollisionPair(int nodeIndex, List<(int, int)> outPairs)
     {
-        Node node1 = boundsTree[nodeIndex1];
-        Node node2 = boundsTree[nodeIndex2];
-        
-        if ((node1.isLeaf && node2.isLeaf) && AABB.CheckAABBCollision(bounds[node1.AABBIndex], bounds[node2.AABBIndex]))
-        {
-            outPairs.Add((nodeIndex1, nodeIndex2));
+        Node node = boundsTree[nodeIndex];
+
+        if (node.leftIndex == -1 && node.rightIndex == -1)
             return;
-        }
-        
-        if (node1.isLeaf || (!node2.isLeaf && bounds[node2.AABBIndex].GetVolume() > bounds[node1.AABBIndex].GetVolume()))
+
+        Node leftNode = boundsTree[node.leftIndex];
+        Node rightNode = boundsTree[node.rightIndex];
+
+        if ((leftNode.isLeaf && rightNode.isLeaf) && AABB.CheckAABBCollision(bounds[leftNode.AABBIndex], bounds[rightNode.AABBIndex]))
         {
-            DetectCollisionPair(nodeIndex1, node2.leftIndex, outPairs);
-            DetectCollisionPair(nodeIndex1, node2.rightIndex, outPairs);
+            outPairs.Add((node.leftIndex, node.rightIndex));
         }
-        else
+        else if (!leftNode.isLeaf)
         {
-            DetectCollisionPair(node1.leftIndex, nodeIndex2, outPairs);
-            DetectCollisionPair(node1.rightIndex, nodeIndex2, outPairs);
+            DetectCollisionPair(node.leftIndex, outPairs);
+        }
+        else if (!rightNode.isLeaf)
+        {
+            DetectCollisionPair(node.rightIndex, outPairs);
         }
 
     }
