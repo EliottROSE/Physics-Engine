@@ -183,9 +183,6 @@ public class PhysicsManager : MonoBehaviour
         {
             InsertAABB(bound);
         }
-
-        Debug.Log(boundsTree.Count);
-        Debug.Log(bounds.Count);
     }
 
     public void InsertAABB(AABB bound)
@@ -421,70 +418,82 @@ public class PhysicsManager : MonoBehaviour
         if (root == -1 || boundsTree.Count == 0)
             return new List<CollisionPair>();
 
-        DetectCollisionPair(root, broadPhasePairs);
-
+        DetectAllCollisionsFromNode(root, broadPhasePairs);
         List<CollisionPair> colliderPairs = new List<CollisionPair>();
 
         foreach ((int a, int b) in broadPhasePairs)
         {
-            Debug.Log($"AABB {a} collide with AABB {b}");
+            if (boundsTree[a].isLeaf && boundsTree[b].isLeaf)
+                Debug.Log($"AABB {a} collide with AABB {b}");
+           // Debug.Log($"AABB {a} collide with AABB {b}");
         }
 
         return colliderPairs;
     }
+    public void DetectAllCollisionsFromNode(int nodeIndex, List<(int, int)> outPairs)
+    {
+        if (nodeIndex == -1)
+            return;
 
-    //public void DetectCollisionPairsRecursive(int nodeAIndex, int nodeBIndex, List<(int, int)> outPairs)
-    //{
-    //    // évite comparer un nœud avec lui-même si on l'appelle de façon non contrôlée
-    //    if (nodeAIndex == nodeBIndex)
-    //    {
-    //        Node n = boundsTree[nodeAIndex];
-    //        if (!n.isLeaf && n.leftIndex != -1 && n.rightIndex != -1)
-    //        {
-    //            DetectCollisionPairsRecursive(n.leftIndex, n.rightIndex, outPairs);
-    //        }
-    //        return;
-    //    }
-    //
-    //    Node a = boundsTree[nodeAIndex];
-    //    Node b = boundsTree[nodeBIndex];
-    //
-    //    // 1) culling rapide : si les AABB parents ne se chevauchent pas → rien à faire
-    //    if (!AABB.CheckAABBCollision(bounds[a.AABBIndex], bounds[b.AABBIndex]))
-    //        return;
-    //
-    //    // 2) si les deux sont feuilles -> collision possible finale
-    //    if (a.isLeaf && b.isLeaf)
-    //    {
-    //        // test leaf vs leaf (déjà fait par le culling parent mais souvent on re-test les AABB exacts des feuilles)
-    //        if (AABB.CheckAABBCollision(bounds[a.AABBIndex], bounds[b.AABBIndex]))
-    //            outPairs.Add((nodeAIndex, nodeBIndex));
-    //        return;
-    //    }
-    //
-    //    // 3) sinon, on descend
-    //    // Si A est leaf et B non -> test A vs B.left & A vs B.right
-    //    if (a.isLeaf && !b.isLeaf)
-    //    {
-    //        DetectCollisionPairsRecursive(nodeAIndex, b.leftIndex, outPairs);
-    //        DetectCollisionPairsRecursive(nodeAIndex, b.rightIndex, outPairs);
-    //        return;
-    //    }
-    //
-    //    // Si B est leaf et A non -> test A.left/B & A.right/B
-    //    if (b.isLeaf && !a.isLeaf)
-    //    {
-    //        DetectCollisionPairsRecursive(a.leftIndex, nodeBIndex, outPairs);
-    //        DetectCollisionPairsRecursive(a.rightIndex, nodeBIndex, outPairs);
-    //        return;
-    //    }
-    //
-    //    // Les deux sont non-leaf -> croisement des enfants
-    //    DetectCollisionPairsRecursive(a.leftIndex, b.leftIndex, outPairs);
-    //    DetectCollisionPairsRecursive(a.leftIndex, b.rightIndex, outPairs);
-    //    DetectCollisionPairsRecursive(a.rightIndex, b.leftIndex, outPairs);
-    //    DetectCollisionPairsRecursive(a.rightIndex, b.rightIndex, outPairs);
-    //}
+        Node node = boundsTree[nodeIndex];
+        if (node.isLeaf)
+            return;
+
+        DetectCollisionPairsRecursive(node.leftIndex, node.rightIndex, outPairs);
+
+        DetectAllCollisionsFromNode(node.leftIndex, outPairs);
+        DetectAllCollisionsFromNode(node.rightIndex, outPairs);
+    }
+
+    public void DetectCollisionPairsRecursive(int nodeIndex1, int nodeIndex2, List<(int, int)> outPairs)
+    {
+        // Root case
+        if (nodeIndex1 == nodeIndex2)
+        {
+            Node node = boundsTree[nodeIndex1];
+            if (!node.isLeaf && node.leftIndex != -1 && node.rightIndex != -1)
+            {
+                DetectCollisionPairsRecursive(node.leftIndex, node.rightIndex, outPairs);
+            }
+            return;
+        }
+
+        Node node1 = boundsTree[nodeIndex1];
+        Node node2 = boundsTree[nodeIndex2];
+
+        if (!AABB.CheckAABBCollision(bounds[node1.AABBIndex], bounds[node2.AABBIndex]))
+        {
+            return;
+        }
+
+        if (node1.isLeaf && node2.isLeaf)
+        {
+            if (AABB.CheckAABBCollision(bounds[node1.AABBIndex], bounds[node2.AABBIndex]))
+            {
+                outPairs.Add((nodeIndex1, nodeIndex2));
+            }
+            return;
+        }
+
+        if (node1.isLeaf && !node2.isLeaf)
+        {
+            DetectCollisionPairsRecursive(nodeIndex1, node2.leftIndex, outPairs);
+            DetectCollisionPairsRecursive(nodeIndex1, node2.rightIndex, outPairs);
+            return;
+        }
+
+        if (node2.isLeaf && !node1.isLeaf)
+        {
+            DetectCollisionPairsRecursive(nodeIndex2, node1.leftIndex, outPairs);
+            DetectCollisionPairsRecursive(nodeIndex2, node1.rightIndex, outPairs);
+            return;
+        }
+
+        DetectCollisionPairsRecursive(node1.leftIndex, node2.leftIndex, outPairs);
+        DetectCollisionPairsRecursive(node1.leftIndex, node2.rightIndex, outPairs);
+        DetectCollisionPairsRecursive(node1.rightIndex, node2.leftIndex, outPairs);
+        DetectCollisionPairsRecursive(node1.rightIndex, node2.rightIndex, outPairs);
+    }
 
     // Basic half work 
     public void DetectCollisionPair(int nodeIndex, List<(int, int)> outPairs)

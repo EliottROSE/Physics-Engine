@@ -14,11 +14,9 @@ public class CustomBoxCollider : CustomCollider
         new Vector3( 0.5f,  0.5f,  0.5f)
     };
 
-    public override void InitAABB()
+    protected override void Awake()
     {
-        aabb = new AABB();
-        UpdatePoints();
-        aabb.SetAABB(points);
+        base.Awake();
     }
 
     protected override void Update()
@@ -28,6 +26,12 @@ public class CustomBoxCollider : CustomCollider
         aabb.SetAABB(points);
     }
 
+    public override void InitAABB()
+    {
+        //aabb = new AABB();
+        UpdatePoints();
+        aabb.SetAABB(points);
+    }
     private void UpdatePoints()
     {
         points.Clear();

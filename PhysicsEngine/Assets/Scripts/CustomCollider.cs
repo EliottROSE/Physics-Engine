@@ -15,14 +15,14 @@ public class CustomCollider : MonoBehaviour
     protected AABB aabb;
 
     #region MonoBehaviour
-    protected virtual void Start()
+    protected virtual void Awake()
     {
         position = transform.position;
         scale = transform.localScale;
         rotation = transform.rotation;
         
         aabb = new AABB();
-        aabb.SetAABB(transform.position, transform.localScale);
+        //aabb.SetAABB(transform.position, transform.localScale);
     }
 
     protected virtual void Update()
