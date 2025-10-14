@@ -48,7 +48,7 @@ public class CustomCollider : MonoBehaviour
 
     public virtual Vector3 GetSupport(Vector3 direction)
     {
-        Vector3 support =  Vector3.zero;
+        Vector3 support = Vector3.zero;
         float maxProjection = Mathf.NegativeInfinity;
 
         foreach (Vector3 point in points)

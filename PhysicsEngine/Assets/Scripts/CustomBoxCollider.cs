@@ -41,4 +41,18 @@ public class CustomBoxCollider : CustomCollider
             points.Add(transform.TransformPoint(localCorners[i]));
         }
     }
+
+    public override Vector3 GetSupport(Vector3 direction)
+    {
+        Vector3 localDir = Quaternion.Inverse(rotation) * direction;
+        
+        Vector3 halfExtents = scale * 0.5f;
+        Vector3 localSupport = new Vector3(
+            localDir.x >= 0 ? halfExtents.x : -halfExtents.x,
+            localDir.y >= 0 ? halfExtents.y : -halfExtents.y,
+            localDir.z >= 0 ? halfExtents.z : -halfExtents.z
+        );
+        
+        return position + (rotation * localSupport);
+    }
 }
