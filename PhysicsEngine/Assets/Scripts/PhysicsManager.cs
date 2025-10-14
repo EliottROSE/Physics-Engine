@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using Unity.VisualScripting.FullSerializer.Internal;
 using UnityEditor.Rendering;
 using UnityEngine;
@@ -34,7 +35,7 @@ public class PhysicsManager : MonoBehaviour
         public bool isLeaf = false; // false if AABB | true if Collider
         public int AABBIndex; // AABB index
 
-        public int colliderIndex = -1;
+        public int ColliderIndex;
 
         public Node(int parent, int left, int right, bool isCollider, int AABB, int Index)
         {
@@ -46,11 +47,16 @@ public class PhysicsManager : MonoBehaviour
             isLeaf = isCollider;
             AABBIndex = AABB;
 
-            colliderIndex = Index;
-
+            ColliderIndex = Index;
         }
     }
     #endregion
+
+    struct ColliderPair
+    {
+        public int collidersIndex;
+        public int boundIndex;
+    }
 
     public struct CollisionPair
     {
@@ -212,6 +218,7 @@ public class PhysicsManager : MonoBehaviour
 
     void Start()
     {
+        
         colliders = FindObjectsOfType<CustomCollider>().ToList();
 
         foreach (CustomCollider collider in colliders)
@@ -220,7 +227,6 @@ public class PhysicsManager : MonoBehaviour
                 continue;
             collider.InitAABB();
             AABB bound = collider.GetAABB();
-
             collidersBounds.Add(bound);
         }
 
@@ -276,24 +282,26 @@ public class PhysicsManager : MonoBehaviour
         // Special case if there is only one collider, it become the root
         if (collidersBounds.Count == 1)
         {
-            Node first = new Node(-1, -1, -1, true, 0); // 0 beceause there is only one collider so only one aabb in list
+            Node first = new Node(-1, -1, -1, true, 0, 0); // 0 beceause there is only one collider so only one aabb in list
             boundsTree.Add(first);
             root = 0;
             return;
         }
 
+        int i = 0;
         foreach (AABB bound in collidersBounds)
         {
-            InsertAABB(bound);
+            InsertAABB(bound, i);
+            i++;
         }
     }
 
-    public void InsertAABB(AABB bound)
+    public void InsertAABB(AABB bound, int colliderIndex)
     {
         // If the tree is empty the first bound become the root
         if (boundsTree.Count == 0)
         {
-            Node node = new Node(-1, -1, -1, true, 0);
+            Node node = new Node(-1, -1, -1, true, 0, colliderIndex);
             int nodeIndex = AddAndReturnNodeIndex(node);
             AddBound(bound);
             root = nodeIndex;
@@ -339,7 +347,7 @@ public class PhysicsManager : MonoBehaviour
         }
 
         // left is currentNode
-        Node newParentNode = new Node(currentNode.parentIndex, newLeftIndex, -1, false, newParentAABBIndex);
+        Node newParentNode = new Node(currentNode.parentIndex, newLeftIndex, -1, false, newParentAABBIndex, -1);
         int newParentNodeIndex = AddAndReturnNodeIndex(newParentNode);
 
         if (currentNode.parentIndex == -1)
@@ -359,7 +367,7 @@ public class PhysicsManager : MonoBehaviour
 
         // new bound node
         int newBoundIndex = AddAndReturnBoundIndex(bound);
-        Node newBoundNode = new Node(newParentNodeIndex, -1, -1, true, newBoundIndex);
+        Node newBoundNode = new Node(newParentNodeIndex, -1, -1, true, newBoundIndex, colliderIndex);
         int newBoundNodeIndex = AddAndReturnNodeIndex(newBoundNode);
         boundsTree[newParentNodeIndex].rightIndex = newBoundNodeIndex;
 
@@ -528,11 +536,16 @@ public class PhysicsManager : MonoBehaviour
         {
             if (boundsTree[a].isLeaf && boundsTree[b].isLeaf)
                 Debug.Log($"AABB {a} collide with AABB {b}");
-           // Debug.Log($"AABB {a} collide with AABB {b}");
-           if (CheckGJKCollision())
-            {
 
+            CustomCollider colliderA = colliders[boundsTree[a].ColliderIndex];
+            CustomCollider colliderB = colliders[boundsTree[b].ColliderIndex];
+            if (CheckGJKCollision(colliderA, colliderB, 64))
+            {
+                 Debug.Log($"Collider {a} collide with Collider {b}");
             }
+           //{
+           //
+           //}
                 
         }
 
