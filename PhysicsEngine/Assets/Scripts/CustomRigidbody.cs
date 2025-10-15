@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class Rigidbody : MonoBehaviour
+public class CustomRigidbody : MonoBehaviour
 {
     enum BodyType
     {
@@ -15,7 +15,7 @@ public class Rigidbody : MonoBehaviour
 
     private CustomCollider collider;
 
-    private float speed; // m.s
+    private Vector3 velocity; // m.s
 
     void Start()
     {
@@ -23,11 +23,5 @@ public class Rigidbody : MonoBehaviour
         {
             Debug.LogErrorFormat("A collider must be attached to ", name);
         }
-    }
-
-
-void Update()
-    {
-        
     }
 }
