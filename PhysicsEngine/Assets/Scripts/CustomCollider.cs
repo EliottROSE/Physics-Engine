@@ -22,7 +22,6 @@ public class CustomCollider : MonoBehaviour
         rotation = transform.rotation;
         
         aabb = new AABB();
-        //aabb.SetAABB(transform.position, transform.localScale);
     }
 
     protected virtual void Update()
@@ -64,4 +63,7 @@ public class CustomCollider : MonoBehaviour
         
         return support;
     }
+    
+    public virtual float GetDragCoefficient() { return 1.0f; } // Placeholder value
+    public virtual float GetCrossSectionalArea(Vector3 direction) { return 1.0f; } // Placeholder value
 }
