@@ -22,7 +22,6 @@ public class CustomCollider : MonoBehaviour
         rotation = transform.rotation;
         
         aabb = new AABB();
-        //aabb.SetAABB(transform.position, transform.localScale);
     }
 
     protected virtual void Update()
@@ -48,7 +47,7 @@ public class CustomCollider : MonoBehaviour
 
     public virtual Vector3 GetSupport(Vector3 direction)
     {
-        Vector3 support =  Vector3.zero;
+        Vector3 support = Vector3.zero;
         float maxProjection = Mathf.NegativeInfinity;
 
         foreach (Vector3 point in points)
@@ -64,4 +63,7 @@ public class CustomCollider : MonoBehaviour
         
         return support;
     }
+    
+    public virtual float GetDragCoefficient() { return 1.0f; } // Placeholder value
+    public virtual float GetCrossSectionalArea(Vector3 direction) { return 1.0f; } // Placeholder value
 }

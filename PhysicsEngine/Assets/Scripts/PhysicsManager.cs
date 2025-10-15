@@ -89,26 +89,43 @@ public class PhysicsManager : MonoBehaviour
     public class Triangle
     {
         public Vector3 a, b, c;
+        public Vector3 opposite;
+        private Vector3 normal;
+        private bool isNormalComputed = false;
         
-        public Triangle(Vector3 a, Vector3 b, Vector3 c)
+        public Triangle(Vector3 _a, Vector3 _b, Vector3 _c, Vector3 _opposite)
         {
-            this.a = a;
-            this.b = b;
-            this.c = c;
+            Set(_a, _b, _c, _opposite);
+        }
+
+        public void Set(Vector3 _a, Vector3 _b, Vector3 _c, Vector3 _opposite)
+        {
+            Vector3 n = Vector3.Cross(_b - _a, _c - _a);
+            if (Vector3.Dot(n, _opposite - _a) < 0f)
+            {
+                this.a = _a;
+                this.b = _c;
+                this.c = _b;
+            }
+            else
+            {
+                this.a = _a;
+                this.b = _b;
+                this.c = _c;
+            }
+
+            isNormalComputed = false;
         }
 
         public Vector3 GetNormal()
         {
-            return Vector3.Cross(b - a, c - a).normalized;
+            if (isNormalComputed)
+                return normal;
+            
+            normal = Vector3.Cross(b - a, c - a).normalized;
+            isNormalComputed = true;
+            return normal;
         }
-    }
-    
-    private static Triangle MakeFace(Vector3 a, Vector3 b, Vector3 c, Vector3 opposite)
-    {
-        Vector3 n = Vector3.Cross(b - a, c - a);
-        if (Vector3.Dot(n, opposite - a) < 0f)
-            return new Triangle(a, c, b);
-        return new Triangle(a, b, c);
     }
     
     private static int GetClosestFaceIndex(List<Triangle> faces, List<int> outsideFaces)
@@ -146,43 +163,45 @@ public class PhysicsManager : MonoBehaviour
         );
         
         float eps = 1e-6f * Mathf.Max(1f, colliderScaleMagnitude);
+        float epsSqr = eps * eps;
         
         Vector3 direction = collider2.transform.position - collider1.transform.position;
-        direction = (direction.sqrMagnitude > eps) ? direction.normalized : Vector3.right;
+        direction = (direction.sqrMagnitude > epsSqr) ? direction.normalized : Vector3.right;
         
         Vector3 point1 = GetSupport(collider1, collider2, direction);
         if (Vector3.Dot(point1, direction) < 0)
             return false;
 
         direction = -point1;
-        direction = (direction.sqrMagnitude > eps) ? direction : Vector3.right;
+        direction = (direction.sqrMagnitude > epsSqr) ? direction : Vector3.right;
         
         Vector3 point2 = GetSupport(collider1, collider2, direction);
         
-        //Vector3 lineNormal = Vector3.Cross(point1, point2);
         Vector3 lineDir = point2 - point1;
         Vector3 lineNormal = Vector3.Cross(lineDir, -point1);
         if (Vector3.Dot(lineNormal, -point1) < 0f) 
             lineNormal = -lineNormal;
-        lineNormal = (lineNormal.sqrMagnitude > eps) ? lineNormal.normalized : Vector3.right;
+        lineNormal = (lineNormal.sqrMagnitude > epsSqr) ? lineNormal.normalized : Vector3.right;
         
         Vector3 point3 = GetSupport(collider1, collider2, lineNormal);
         
         Vector3 faceNormal = Vector3.Cross(point2 - point1, point3 - point1);
         if (Vector3.Dot(faceNormal, -point1) < 0f) 
             faceNormal = -faceNormal;
-        faceNormal = (faceNormal.sqrMagnitude > eps) ? faceNormal.normalized : Vector3.right;
+        faceNormal = (faceNormal.sqrMagnitude > epsSqr) ? faceNormal.normalized : Vector3.right;
         faceNormal.Normalize();
         
         Vector3 point4 = GetSupport(collider1, collider2, faceNormal);
         
-        List<Triangle> faces = new List<Triangle>();
-        faces.Add(MakeFace(point1, point2, point3, point4));
-        faces.Add(MakeFace(point2, point3, point4, point1));
-        faces.Add(MakeFace(point3, point4, point1, point2));
-        faces.Add(MakeFace(point4, point1, point2, point3));
-        
-        List<int> outsideFaces = new List<int>();
+        List<Triangle> faces = new List<Triangle>(4)
+        {
+            new(point1, point2, point3, point4),
+            new(point2, point3, point4, point1),
+            new(point3, point4, point1, point2),
+            new(point4, point1, point2, point3)
+        };
+
+        List<int> outsideFaces = new List<int>(4);
 
         for (int i = 0; i < maxIterations; ++i)
         {
@@ -191,8 +210,12 @@ public class PhysicsManager : MonoBehaviour
             {
                 Triangle face = faces[j];
                 Vector3 n = face.GetNormal();
-                float dot = Vector3.Dot(n, face.a);
-                if (dot > 0f)
+                
+                float dotFaceOpposite = Vector3.Dot(n, face.opposite - face.a);
+                float dotOrigin = Vector3.Dot(n, -face.a);
+
+                bool sameSide = dotFaceOpposite * dotOrigin > eps;
+                if (!sameSide)
                     outsideFaces.Add(j);
             }
 
@@ -215,10 +238,10 @@ public class PhysicsManager : MonoBehaviour
             if (Vector3.Dot(newPoint, chosenNormal) <= eps)
                 return false;
 
-            faces[0] = MakeFace(chosenFace.a, chosenFace.b, newPoint, chosenFace.c);
-            faces[1] = MakeFace(chosenFace.b, chosenFace.c, newPoint, chosenFace.a);
-            faces[2] = MakeFace(chosenFace.c, chosenFace.a, newPoint, chosenFace.b);
-            faces[3] = MakeFace(chosenFace.a, chosenFace.b, chosenFace.c, newPoint);
+            faces[0].Set(chosenFace.a, chosenFace.b, newPoint, chosenFace.c);
+            faces[1].Set(chosenFace.b, chosenFace.c, newPoint, chosenFace.a);
+            faces[2].Set(chosenFace.c, chosenFace.a, newPoint, chosenFace.b);
+            faces[3].Set(chosenFace.a, chosenFace.b, chosenFace.c, newPoint);
         }
         
         return false;
