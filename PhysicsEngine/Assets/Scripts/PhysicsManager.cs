@@ -5,6 +5,7 @@ using Unity.VisualScripting;
 using Unity.VisualScripting.FullSerializer.Internal;
 using UnityEditor.Rendering;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 public class PhysicsManager : MonoBehaviour
 {
@@ -201,7 +202,14 @@ public class PhysicsManager : MonoBehaviour
             int closest = GetClosestFaceIndex(faces, outsideFaces);
             
             Triangle chosenFace = faces[closest];
-            Vector3 chosenNormal = chosenFace.GetNormal();
+            Vector3 chosenNormal = chosenFace.GetNormal(); // Already got normal for EPA
+            
+            // Penetration : 
+            //float penetration = -Vector3.Dot(chosenNormal, chosenFace.a);
+            //Mathf.Abs(penetration);
+
+            // contact point : 
+            //Vector3 contactPoint;
 
             Vector3 newPoint = GetSupport(collider1, collider2, chosenNormal);
             if (Vector3.Dot(newPoint, chosenNormal) <= eps)
@@ -214,6 +222,45 @@ public class PhysicsManager : MonoBehaviour
         }
         
         return false;
+    }
+
+    public static CollisionPair ExpendingPolygonAlgorithm(CustomCollider collider1, CustomCollider collider2, List<Triangle> faces, List<int> outsideFaces,int maxIterations)
+    {
+        float eps = 1e-6f;
+
+        for (int i = 0; i < maxIterations; i++)
+        {
+            Triangle closestFace = faces[GetClosestFaceIndex(faces, outsideFaces)];
+            Vector3 dir = closestFace.GetNormal();
+
+            float dist = Vector3.Dot(dir, closestFace.a);
+
+            Vector3 newPoint = GetSupport(collider1, collider2, dir);
+            float newDist = Vector3.Dot(newPoint, dir);
+
+
+            if (newDist - dist < eps)
+            {
+                Vector3 Cp = ProjectOriginOnTriangle(closestFace.a.point, closestFace.b.point, closestFace.c.point);
+                Vector3 bary = ComputeBarycentric(Cp, closestFace.a.point, closestFace.b.point, closestFace.c.point);
+
+                Vector3 point = bary.x * closestFace.a.supportA + bary.y * closestFace.b.supportA + bary.z * closestFace.c.supportA;
+                Vector3 contactB = bary.x * closestFace.a.supportB + bary.y * closestFace.b.supportB + bary.z * closestFace.c.supportB;
+
+                CollisionPair pair = new CollisionPair();
+                pair.normal = closestFace.GetNormal();
+                pair.penetration = dist;
+
+                return pair;
+                
+            }
+            // Remake face 
+            faces[0] = MakeFace(closestFace.a, closestFace.b, newPoint, closestFace.c);
+            faces[1] = MakeFace(closestFace.b, closestFace.c, newPoint, closestFace.a);
+            faces[2] = MakeFace(closestFace.c, closestFace.a, newPoint, closestFace.b);
+            faces[3] = MakeFace(closestFace.a, closestFace.b, closestFace.c, newPoint);
+        }
+        return new CollisionPair { };
     }
 
     void Start()
