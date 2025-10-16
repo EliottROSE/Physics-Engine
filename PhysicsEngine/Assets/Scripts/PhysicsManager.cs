@@ -264,11 +264,11 @@ public class PhysicsManager : MonoBehaviour
 
             if (newDist - dist < eps)
             {
-                Vector3 Cp = ProjectOriginOnTriangle(closestFace.a.point, closestFace.b.point, closestFace.c.point);
-                Vector3 bary = ComputeBarycentric(Cp, closestFace.a.point, closestFace.b.point, closestFace.c.point);
-
-                Vector3 point = bary.x * closestFace.a.supportA + bary.y * closestFace.b.supportA + bary.z * closestFace.c.supportA;
-                Vector3 contactB = bary.x * closestFace.a.supportB + bary.y * closestFace.b.supportB + bary.z * closestFace.c.supportB;
+                //Vector3 Cp = ProjectOriginOnTriangle(closestFace.a.point, closestFace.b.point, closestFace.c.point);
+                //Vector3 bary = ComputeBarycentric(Cp, closestFace.a.point, closestFace.b.point, closestFace.c.point);
+                //
+                //Vector3 point = bary.x * closestFace.a.supportA + bary.y * closestFace.b.supportA + bary.z * closestFace.c.supportA;
+                //Vector3 contactB = bary.x * closestFace.a.supportB + bary.y * closestFace.b.supportB + bary.z * closestFace.c.supportB;
 
                 CollisionPair pair = new CollisionPair();
                 pair.normal = closestFace.GetNormal();
@@ -278,10 +278,10 @@ public class PhysicsManager : MonoBehaviour
                 
             }
             // Remake face 
-            faces[0] = MakeFace(closestFace.a, closestFace.b, newPoint, closestFace.c);
-            faces[1] = MakeFace(closestFace.b, closestFace.c, newPoint, closestFace.a);
-            faces[2] = MakeFace(closestFace.c, closestFace.a, newPoint, closestFace.b);
-            faces[3] = MakeFace(closestFace.a, closestFace.b, closestFace.c, newPoint);
+            //faces[0] = MakeFace(closestFace.a, closestFace.b, newPoint, closestFace.c);
+            //faces[1] = MakeFace(closestFace.b, closestFace.c, newPoint, closestFace.a);
+            //faces[2] = MakeFace(closestFace.c, closestFace.a, newPoint, closestFace.b);
+            //faces[3] = MakeFace(closestFace.a, closestFace.b, closestFace.c, newPoint);
         }
         return new CollisionPair { };
     }
