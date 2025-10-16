@@ -247,41 +247,56 @@ public class PhysicsManager : MonoBehaviour
         return false;
     }
 
-    public static CollisionPair ExpendingPolygonAlgorithm(CustomCollider collider1, CustomCollider collider2, List<Triangle> faces, List<int> outsideFaces,int maxIterations)
+    // Collider1, Collider2, faces = final samplex of GJK, maxIterations = maximum number of iterations
+    public static CollisionPair ExpendingPolygonAlgorithm(CustomCollider collider1, CustomCollider collider2, List<Triangle> faces, int maxIterations)
     {
+        // Value use to check value close to zero with float
         float eps = 1e-6f;
 
+        // Not use in EPA itself, use to get the closest face to the origin with our function
+        List<int> facesIndex = new List<int>(faces.Count); // will be delete
+        //for (int i = 0; i < faces.Count - 1; ++i)
+        //{
+        //    facesIndex.Add(i);
+        //}
+        
+        // Summ create from GJK result, will expend on each iteration until we find the closest face
+        List<Vector3> polygon = new List<Vector3>();
+        if (faces.Count != 0)
+        {
+            polygon.Add(faces[0].a);
+            polygon.Add(faces[0].b);
+            polygon.Add(faces[0].c);
+            polygon.Add(faces[0].opposite);
+        }
+        
         for (int i = 0; i < maxIterations; i++)
         {
-            Triangle closestFace = faces[GetClosestFaceIndex(faces, outsideFaces)];
-            Vector3 dir = closestFace.GetNormal();
+            // get closest face to the origin
+            Triangle closestFace = faces[GetClosestFaceIndex(faces, facesIndex)];
+            
+            // Get a new support point
+            Vector3 supportPoint = GetSupport(collider1, collider2, -closestFace.GetNormal());
+            
+            // Find the distance to the origin
+            float dist = Vector3.Dot(closestFace.GetNormal(), closestFace.a);
+            // Find the distance to the origin with this new support point
+            float supportDist = Vector3.Dot(closestFace.GetNormal(), supportPoint);
 
-            float dist = Vector3.Dot(dir, closestFace.a);
-
-            Vector3 newPoint = GetSupport(collider1, collider2, dir);
-            float newDist = Vector3.Dot(newPoint, dir);
-
-
-            if (newDist - dist < eps)
+            // If distance between new distance from support point and the base distance, the new point is in resonnable distance from the plan
+            if (supportDist - dist < eps)
             {
-                //Vector3 Cp = ProjectOriginOnTriangle(closestFace.a.point, closestFace.b.point, closestFace.c.point);
-                //Vector3 bary = ComputeBarycentric(Cp, closestFace.a.point, closestFace.b.point, closestFace.c.point);
-                //
-                //Vector3 point = bary.x * closestFace.a.supportA + bary.y * closestFace.b.supportA + bary.z * closestFace.c.supportA;
-                //Vector3 contactB = bary.x * closestFace.a.supportB + bary.y * closestFace.b.supportB + bary.z * closestFace.c.supportB;
+               
 
                 CollisionPair pair = new CollisionPair();
-                pair.normal = closestFace.GetNormal();
-                pair.penetration = dist;
-
+                //pair.normal = closestFace.GetNormal();
+                //pair.penetration = dist;
+                
                 return pair;
                 
             }
-            // Remake face 
-            //faces[0] = MakeFace(closestFace.a, closestFace.b, newPoint, closestFace.c);
-            //faces[1] = MakeFace(closestFace.b, closestFace.c, newPoint, closestFace.a);
-            //faces[2] = MakeFace(closestFace.c, closestFace.a, newPoint, closestFace.b);
-            //faces[3] = MakeFace(closestFace.a, closestFace.b, closestFace.c, newPoint);
+            // Add new support point to polygon
+
         }
         return new CollisionPair { };
     }
