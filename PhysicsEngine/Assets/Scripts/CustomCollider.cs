@@ -5,11 +5,8 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 public class CustomCollider : MonoBehaviour
-{   
-    protected Vector3 position = Vector3.zero;
-    protected Quaternion rotation = Quaternion.identity;
-    protected Vector3 scale = Vector3.one;
-    
+{  
+    protected List<Vector3> localPoints = new List<Vector3>();
     protected List<Vector3> points = new List<Vector3>();
     
     protected AABB aabb;
@@ -17,25 +14,17 @@ public class CustomCollider : MonoBehaviour
     #region MonoBehaviour
     protected virtual void Awake()
     {
-        position = transform.position;
-        scale = transform.localScale;
-        rotation = transform.rotation;
-        
         aabb = new AABB();
+        UpdatePoints();
     }
 
     protected virtual void Update()
     {
-        position = transform.position;
-        scale = transform.localScale;
-        rotation = transform.rotation;
+        UpdatePoints();
     }
     #endregion
     
     #region Getter
-    public Vector3 GetPosition() { return position; }
-    public Quaternion GetRotation() { return rotation; }
-    public Vector3 GetScale() { return scale; }
     public AABB GetAABB() { return aabb; return gameObject.GetComponentInParent<AABB>(); }
     #endregion
 
@@ -66,6 +55,19 @@ public class CustomCollider : MonoBehaviour
         }
         
         return support;
+    }
+
+    protected virtual void UpdatePoints()
+    {
+        if (localPoints.Count <= 0)
+            return;
+        
+        points.Clear();
+        
+        for (int i = 0; i < localPoints.Count; i++)
+        {
+            points.Add(transform.TransformPoint(localPoints[i]));
+        }
     }
     
     public virtual float GetDragCoefficient() { return 1.0f; } // Placeholder value
