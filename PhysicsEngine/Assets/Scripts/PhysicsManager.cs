@@ -52,6 +52,85 @@ public class PhysicsManager : MonoBehaviour
         }
     }
     #endregion
+    
+    public class Triangle
+    {
+        public Vector3 a, b, c;
+        private Vector3 normal;
+        private bool isNormalComputed = false;
+        
+        public Triangle(Vector3 _a, Vector3 _b, Vector3 _c)
+        {
+            Set(_a, _b, _c);
+        }
+
+        public void Set(Vector3 _a, Vector3 _b, Vector3 _c)
+        {
+                this.a = _a;
+                this.b = _b;
+                this.c = _c;
+
+            isNormalComputed = false;
+        }
+
+        public Vector3 GetNormal()
+        {
+            if (isNormalComputed)
+                return normal;
+            
+            normal = Vector3.Cross(b - a, c - a).normalized;
+            isNormalComputed = true;
+            return normal;
+        }
+
+        public static List<Triangle> BuildGJKTetrahedron(List<Vector3> simplex)
+        {
+            List<Triangle> faces = new List<Triangle>(4);
+
+            if (simplex.Count < 4 || simplex.Count > 4 || simplex.Count <= 0)
+            {
+                Debug.LogError("Cannot build tetrahedron");
+                return faces;
+            }
+
+            faces[0] = new Triangle(simplex[0], simplex[1], simplex[2]);
+            faces[1] = new Triangle(simplex[1], simplex[2], simplex[3]);
+            faces[2] = new Triangle(simplex[2], simplex[3], simplex[0]);
+            faces[3] = new Triangle(simplex[3], simplex[0], simplex[1]);
+            
+            return faces;
+        }
+        
+        public static List<Triangle> BuildGJKTetrahedron(ref List<Triangle> tetrahedron, List<Vector3> newPoints)
+        {
+            List<Triangle> faces = new List<Triangle>();
+            
+            
+            
+            return faces;
+        }
+    }
+    
+    private static Triangle GetClosestFace(List<Triangle> faces)
+    {
+        Triangle closest = new Triangle(Vector3.zero, Vector3.zero, Vector3.zero);
+        float minDistance = float.MaxValue;
+
+        foreach (Triangle face in faces)
+        {
+            Vector3 n = face.GetNormal();
+
+            float distance = Vector3.Dot(n, -face.a);
+            
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                closest = face;
+            }
+        }
+
+        return closest;
+    }
 
     struct ColliderPair
     {
@@ -87,49 +166,37 @@ public class PhysicsManager : MonoBehaviour
     private int root;
 
     // Collider1, Collider2, faces = final samplex of GJK, maxIterations = maximum number of iterations
-    public static CollisionPair ExpendingPolygonAlgorithm(CustomCollider collider1, CustomCollider collider2, List<Triangle> faces, int maxIterations)
+    public static CollisionPair ExpendingPolytopeAlgorithm(CustomCollider collider1, CustomCollider collider2, List<Vector3> gjkSimplex, int maxIterations)
     {
         // Value use to check value close to zero with float
         float eps = 1e-6f;
-
-        // Not use in EPA itself, use to get the closest face to the origin with our function
-        List<int> facesIndex = new List<int>(faces.Count); // will be delete
-        //for (int i = 0; i < faces.Count - 1; ++i)
-        //{
-        //    facesIndex.Add(i);
-        //}
+        
+        List<Triangle> epaSimplex = Triangle.BuildGJKTetrahedron(gjkSimplex);
         
         // Summ create from GJK result, will expend on each iteration until we find the closest face
-        List<Vector3> polygon = new List<Vector3>();
-        if (faces.Count != 0)
-        {
-            polygon.Add(faces[0].a);
-            polygon.Add(faces[0].b);
-            polygon.Add(faces[0].c);
-            polygon.Add(faces[0].opposite);
-        }
+        
         
         for (int i = 0; i < maxIterations; i++)
         {
             // get closest face to the origin
-            Triangle closestFace = faces[GetClosestFaceIndex(faces, facesIndex)];
+            Triangle closestFace = GetClosestFace(epaSimplex);
             
             // Get a new support point
             Vector3 supportPoint = GetSupport(collider1, collider2, -closestFace.GetNormal());
             
             // Find the distance to the origin
-            float dist = Vector3.Dot(closestFace.GetNormal(), closestFace.a);
+            float dist = Vector3.Dot(closestFace.GetNormal(), -closestFace.a);
             // Find the distance to the origin with this new support point
-            float supportDist = Vector3.Dot(closestFace.GetNormal(), supportPoint);
+            float supportDist = Vector3.Dot(closestFace.GetNormal(), -supportPoint);
 
             // If distance between new distance from support point and the base distance, the new point is in resonnable distance from the plan
             if (supportDist - dist < eps)
             {
-               
+                
 
                 CollisionPair pair = new CollisionPair();
-                //pair.normal = closestFace.GetNormal();
-                //pair.penetration = dist;
+                pair.normal = closestFace.GetNormal();
+                pair.penetration = dist;
                 
                 return pair;
                 
