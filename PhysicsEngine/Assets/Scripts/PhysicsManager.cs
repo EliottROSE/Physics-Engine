@@ -9,6 +9,9 @@ using UnityEngine.Rendering.Universal;
 
 public class PhysicsManager : MonoBehaviour
 {
+    [SerializeField] private float penetrationPercentage = 0.4f;
+    [SerializeField] private float penetrationAllowance = 0.1f;
+    
     #region Singleton
 
     static PhysicsManager instance = null;
@@ -140,8 +143,8 @@ public class PhysicsManager : MonoBehaviour
 
     public struct CollisionPair
     {
-        public Rigidbody body1;
-        public Rigidbody body2;
+        public CustomRigidbody body1;
+        public CustomRigidbody body2;
         
         public Vector3 point; // Point of collision
         public Vector3 normal; // normal of collision point
@@ -205,6 +208,53 @@ public class PhysicsManager : MonoBehaviour
 
         }
         return new CollisionPair { };
+    }
+    
+    private void ResolveCollisions(List<CollisionPair> collisionPairs)
+    {
+        if (collisionPairs.Count == 0)
+            return;
+        
+        foreach (CollisionPair pair in collisionPairs)
+        {
+            CustomRigidbody body1 = pair.body1;
+            CustomRigidbody body2 = pair.body2;
+
+            if (body1.Type != CustomRigidbody.BodyType.Dynamic && body2.Type != CustomRigidbody.BodyType.Dynamic)
+                continue;
+            
+            Vector3 normal = pair.normal.normalized;
+            
+            Vector3 ab  = body2.Center - body1.Center;
+            if (Vector3.Dot(ab, normal) < float.Epsilon)
+                normal = -normal;
+            
+            Vector3 relativeVelocity = body2.Velocity - body1.Velocity;
+            float velocityAlongNormal = Vector3.Dot(relativeVelocity, normal);
+            
+            if (velocityAlongNormal > float.Epsilon)
+                continue;
+
+            float restitution = Mathf.Min(body1.Restitution, body2.Restitution);
+            
+            float invMass1 = body1.GetInverseMass();
+            float invMass2 = body2.GetInverseMass();
+            float totalInvMass = invMass1 + invMass2;
+            
+            float impulseMagnitude = -(1 + restitution) * velocityAlongNormal;
+            impulseMagnitude /= totalInvMass;
+            
+            Vector3 impulse = impulseMagnitude * normal;
+            body1.AddImpulse(-impulse);
+            body2.AddImpulse(impulse);
+            
+            float penetration = Mathf.Max(pair.penetration - penetrationAllowance, 0f);
+            Vector3 correction = (penetration / totalInvMass) * penetrationPercentage * normal;
+            if (body1.Type == CustomRigidbody.BodyType.Dynamic)
+                body1.MoveCenter(-correction * invMass1);
+            if (body2.Type == CustomRigidbody.BodyType.Dynamic)
+                body2.MoveCenter(correction * invMass2);
+        }
     }
 
     void Start()

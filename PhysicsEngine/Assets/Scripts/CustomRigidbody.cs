@@ -1,4 +1,6 @@
 using System;
+using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class CustomRigidbody : MonoBehaviour
@@ -15,16 +17,30 @@ public class CustomRigidbody : MonoBehaviour
     [SerializeField] private BodyType bodyType = BodyType.Static;
     [SerializeField] private float mass = 1.0f; // kg
     [SerializeField] private float airDensity = 1.225f;
+    [SerializeField] private float restitution = 0f;
 
     private CustomCollider collider;
 
     private Vector3 velocity = Vector3.zero; // m.s
+    private Vector3 center;
     
     public BodyType Type => bodyType;
     public Vector3 Velocity => velocity;
+    public Vector3 Center => center;
+    public float Restitution => restitution;
+    
+    public float GetInverseMass()
+    {
+        if (bodyType != BodyType.Dynamic || mass <= 0f)
+            return 0f;
+        
+        return 1f / mass;
+    }
     
     public void SetVelocity(Vector3 velocity) { this.velocity = velocity; }
     public void AddVelocity(Vector3 deltaV) { velocity += deltaV; }
+    
+    public void MoveCenter(Vector3 move) { center += move; }
     
     public void AddForce(Vector3 force)
     {
@@ -66,6 +82,9 @@ public class CustomRigidbody : MonoBehaviour
         {
             Debug.LogErrorFormat("A collider must be attached to ", name);
         }
+        
+        restitution = Mathf.Clamp(restitution, 0f, 1f);
+        center = transform.position;
     }
 
     private void FixedUpdate()
@@ -78,6 +97,11 @@ public class CustomRigidbody : MonoBehaviour
         }
         
         if (bodyType != BodyType.Static)
-            gameObject.transform.position += velocity * Time.fixedDeltaTime;
+            center += velocity * Time.fixedDeltaTime;
+    }
+
+    private void LateUpdate()
+    {
+        transform.position = center;
     }
 }
