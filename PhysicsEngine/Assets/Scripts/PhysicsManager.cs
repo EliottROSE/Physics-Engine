@@ -322,7 +322,7 @@ public class PhysicsManager : MonoBehaviour
             if (supportDist - dist < eps)
             {
                 CollisionPair pair = new CollisionPair();
-                pair.normal = closestFace.GetNormal();
+                pair.normal = -closestFace.GetNormal();
                 pair.penetration = dist;
                 pair.point = collider1.GetSupport(-closestFace.GetNormal());
                 return pair;
@@ -838,7 +838,14 @@ public class PhysicsManager : MonoBehaviour
                 Debug.Log("GJK COllision");
                 CollisionPair pair = ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);
                 collisionPairs.Add(pair);
-                Debug.DrawLine(pair.point, pair.point + pair.normal * pair.penetration,  Color.blue);
+                Debug.DrawLine(pair.point, pair.point + pair.normal * pair.penetration,  Color.blue, 10f);
+                // Tracer un petit repère pour le point de contact
+                float size = 0.05f; 
+                Vector3 p = pair.point;
+                Debug.DrawLine(p - Vector3.right * size, p + Vector3.right * size, Color.red, 10f);
+                Debug.DrawLine(p - Vector3.up * size, p + Vector3.up * size, Color.green, 10f);
+                Debug.DrawLine(p - Vector3.forward * size, p + Vector3.forward * size, Color.yellow, 10f);
+                
                 Debug.Log("Hit point : " + pair.point);
                 Debug.Log("Hit normal : " + pair.normal);
                 Debug.Log("Hit penetration : " + pair.penetration);
