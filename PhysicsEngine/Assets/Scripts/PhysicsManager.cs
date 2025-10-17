@@ -244,10 +244,37 @@ public class PhysicsManager : MonoBehaviour
             float impulseMagnitude = -(1 + restitution) * velocityAlongNormal;
             impulseMagnitude /= totalInvMass;
             
+            // Normal impulse
             Vector3 impulse = impulseMagnitude * normal;
             body1.AddImpulse(-impulse);
             body2.AddImpulse(impulse);
             
+            // Friction impulse
+            Vector3 tangent = relativeVelocity - Vector3.Dot(relativeVelocity, normal) * normal;
+            if (tangent.sqrMagnitude > float.Epsilon)
+            {
+                tangent.Normalize();
+                float velocityAlongTangent = Vector3.Dot(relativeVelocity, tangent);
+
+                if (velocityAlongTangent > float.Epsilon)
+                {
+                    float staticFriction = Mathf.Sqrt(body1.StaticFriction * body2.StaticFriction);
+                    float dynamicFriction = Mathf.Sqrt(body1.DynamicFriction * body2.DynamicFriction);
+                    float frictionImpulseMag = -velocityAlongTangent / totalInvMass;
+
+                    float maxFriction = impulseMagnitude * staticFriction;
+                    if (Mathf.Abs(frictionImpulseMag) > maxFriction)
+                        frictionImpulseMag = Mathf.Sign(frictionImpulseMag) * impulseMagnitude * dynamicFriction;
+
+                    Vector3 frictionImpulse = frictionImpulseMag * tangent;
+
+                    body1.AddImpulse(-frictionImpulse);
+                    body2.AddImpulse(frictionImpulse);
+                    
+                }
+            }
+            
+            // Positional correction
             float penetration = Mathf.Max(pair.penetration - penetrationAllowance, 0f);
             Vector3 correction = (penetration / totalInvMass) * penetrationPercentage * normal;
             if (body1.Type == CustomRigidbody.BodyType.Dynamic)

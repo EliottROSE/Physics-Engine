@@ -18,6 +18,8 @@ public class CustomRigidbody : MonoBehaviour
     [SerializeField] private float mass = 1.0f; // kg
     [SerializeField] private float airDensity = 1.225f;
     [SerializeField] private float restitution = 0f;
+    [SerializeField] private float staticFriction = 0.6f;
+    [SerializeField] private float dynamicFriction = 0.4f;
 
     private CustomCollider collider;
 
@@ -28,6 +30,8 @@ public class CustomRigidbody : MonoBehaviour
     public Vector3 Velocity => velocity;
     public Vector3 Center => center;
     public float Restitution => restitution;
+    public float StaticFriction => staticFriction;
+    public float DynamicFriction => dynamicFriction;
     
     public float GetInverseMass()
     {
