@@ -85,167 +85,6 @@ public class PhysicsManager : MonoBehaviour
 
     // Index of the root 
     private int root;
-    
-    public class Triangle
-    {
-        public Vector3 a, b, c;
-        public Vector3 opposite;
-        private Vector3 normal;
-        private bool isNormalComputed = false;
-        
-        public Triangle(Vector3 _a, Vector3 _b, Vector3 _c, Vector3 _opposite)
-        {
-            Set(_a, _b, _c, _opposite);
-        }
-
-        public void Set(Vector3 _a, Vector3 _b, Vector3 _c, Vector3 _opposite)
-        {
-            Vector3 n = Vector3.Cross(_b - _a, _c - _a);
-            if (Vector3.Dot(n, _opposite - _a) < 0f)
-            {
-                this.a = _a;
-                this.b = _c;
-                this.c = _b;
-            }
-            else
-            {
-                this.a = _a;
-                this.b = _b;
-                this.c = _c;
-            }
-
-            isNormalComputed = false;
-        }
-
-        public Vector3 GetNormal()
-        {
-            if (isNormalComputed)
-                return normal;
-            
-            normal = Vector3.Cross(b - a, c - a).normalized;
-            isNormalComputed = true;
-            return normal;
-        }
-    }
-    
-    private static int GetClosestFaceIndex(List<Triangle> faces, List<int> outsideFaces)
-    {
-        int closest = -1;
-        float minDistance = float.MaxValue;
-
-        foreach (int i in outsideFaces)
-        {
-            Triangle face = faces[i];
-            Vector3 n = face.GetNormal();
-
-            float distance = Vector3.Dot(n, -face.a);
-            
-            if (distance < minDistance)
-            {
-                minDistance = distance;
-                closest = i;
-            }
-        }
-
-        return closest;
-    }
-
-    public static Vector3 GetSupport(CustomCollider collider1, CustomCollider collider2, Vector3 direction)
-    {
-        return collider1.GetSupport(direction) - collider2.GetSupport(-direction);
-    }
-
-    public static bool CheckGJKCollision(CustomCollider collider1, CustomCollider collider2, uint maxIterations)
-    {
-        float colliderScaleMagnitude = Mathf.Max(
-            collider1.transform.lossyScale.magnitude,
-            collider2.transform.lossyScale.magnitude
-        );
-        
-        float eps = 1e-6f * Mathf.Max(1f, colliderScaleMagnitude);
-        float epsSqr = eps * eps;
-        
-        Vector3 direction = collider2.transform.position - collider1.transform.position;
-        direction = (direction.sqrMagnitude > epsSqr) ? direction.normalized : Vector3.right;
-        
-        Vector3 point1 = GetSupport(collider1, collider2, direction);
-        if (Vector3.Dot(point1, direction) < 0)
-            return false;
-
-        direction = -point1;
-        direction = (direction.sqrMagnitude > epsSqr) ? direction : Vector3.right;
-        
-        Vector3 point2 = GetSupport(collider1, collider2, direction);
-        
-        Vector3 lineDir = point2 - point1;
-        Vector3 lineNormal = Vector3.Cross(lineDir, -point1);
-        if (Vector3.Dot(lineNormal, -point1) < 0f) 
-            lineNormal = -lineNormal;
-        lineNormal = (lineNormal.sqrMagnitude > epsSqr) ? lineNormal.normalized : Vector3.right;
-        
-        Vector3 point3 = GetSupport(collider1, collider2, lineNormal);
-        
-        Vector3 faceNormal = Vector3.Cross(point2 - point1, point3 - point1);
-        if (Vector3.Dot(faceNormal, -point1) < 0f) 
-            faceNormal = -faceNormal;
-        faceNormal = (faceNormal.sqrMagnitude > epsSqr) ? faceNormal.normalized : Vector3.right;
-        faceNormal.Normalize();
-        
-        Vector3 point4 = GetSupport(collider1, collider2, faceNormal);
-        
-        List<Triangle> faces = new List<Triangle>(4)
-        {
-            new(point1, point2, point3, point4),
-            new(point2, point3, point4, point1),
-            new(point3, point4, point1, point2),
-            new(point4, point1, point2, point3)
-        };
-
-        List<int> outsideFaces = new List<int>(4);
-
-        for (int i = 0; i < maxIterations; ++i)
-        {
-            outsideFaces.Clear();
-            for (int j = 0; j < faces.Count; ++j)
-            {
-                Triangle face = faces[j];
-                Vector3 n = face.GetNormal();
-                
-                float dotFaceOpposite = Vector3.Dot(n, face.opposite - face.a);
-                float dotOrigin = Vector3.Dot(n, -face.a);
-
-                bool sameSide = dotFaceOpposite * dotOrigin > eps;
-                if (!sameSide)
-                    outsideFaces.Add(j);
-            }
-
-            if (outsideFaces.Count == 0)
-                return true;
-
-            int closest = GetClosestFaceIndex(faces, outsideFaces);
-            
-            Triangle chosenFace = faces[closest];
-            Vector3 chosenNormal = chosenFace.GetNormal(); // Already got normal for EPA
-            
-            // Penetration : 
-            //float penetration = -Vector3.Dot(chosenNormal, chosenFace.a);
-            //Mathf.Abs(penetration);
-
-            // contact point : 
-            //Vector3 contactPoint;
-
-            Vector3 newPoint = GetSupport(collider1, collider2, chosenNormal);
-            if (Vector3.Dot(newPoint, chosenNormal) <= eps)
-                return false;
-
-            faces[0].Set(chosenFace.a, chosenFace.b, newPoint, chosenFace.c);
-            faces[1].Set(chosenFace.b, chosenFace.c, newPoint, chosenFace.a);
-            faces[2].Set(chosenFace.c, chosenFace.a, newPoint, chosenFace.b);
-            faces[3].Set(chosenFace.a, chosenFace.b, chosenFace.c, newPoint);
-        }
-        
-        return false;
-    }
 
     // Collider1, Collider2, faces = final samplex of GJK, maxIterations = maximum number of iterations
     public static CollisionPair ExpendingPolygonAlgorithm(CustomCollider collider1, CustomCollider collider2, List<Triangle> faces, int maxIterations)
@@ -607,6 +446,151 @@ public class PhysicsManager : MonoBehaviour
     
     #region MainCollisionFunctions
 
+    private static bool CheckGJKCollision(CustomCollider collider1, CustomCollider collider2, uint maxIterations)
+    {
+        Vector3 direction = collider2.transform.position - collider1.transform.position;
+        if (direction == Vector3.zero)
+            direction = Vector3.right;
+
+        List<Vector3> simplex = new List<Vector3> { GetSupport(collider1, collider2, direction) };
+
+        direction = -simplex[0];
+
+        for (int iter = 0; iter < maxIterations; iter++)
+        {
+            Vector3 newPoint = GetSupport(collider1, collider2, direction);
+
+            if (Vector3.Dot(newPoint, direction) <= 0f)
+                return false;
+
+            simplex.Add(newPoint);
+
+            if (ContainsOrigin(simplex, ref direction))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static Vector3 GetSupport(CustomCollider collider1, CustomCollider collider2, Vector3 direction)
+    {
+        return collider1.GetSupport(direction) - collider2.GetSupport(-direction);
+    }
+
+    private static bool ContainsOrigin(List<Vector3> simplex, ref Vector3 direction)
+    {
+        if (simplex.Count == 2)
+        {
+            Vector3 a = simplex[1];
+            Vector3 b = simplex[0];
+
+            Vector3 ab = b - a;
+            Vector3 ao = -a;
+
+            if (Vector3.Dot(ab, ao) > 0)
+            {
+                direction = Vector3.Cross(Vector3.Cross(ab, ao), ab);
+            }
+            else
+            {
+                simplex.RemoveAt(0);
+                direction = ao;
+            }
+        }
+        else if (simplex.Count == 3)
+        {
+            Vector3 a = simplex[2];
+            Vector3 b = simplex[1];
+            Vector3 c = simplex[0];
+
+            Vector3 ab = b - a;
+            Vector3 ac = c - a;
+            Vector3 ao = -a;
+
+            Vector3 abc = Vector3.Cross(ab, ac);
+
+            if (Vector3.Dot(Vector3.Cross(abc, ac), ao) > 0)
+            {
+                if (Vector3.Dot(ac, ao) > 0)
+                {
+                    simplex.RemoveAt(1);
+                    direction = Vector3.Cross(Vector3.Cross(ac, ao), ac);
+                }
+                else
+                {
+                    simplex.RemoveAt(0);
+                    return ContainsOrigin(simplex, ref direction);
+                }
+            }
+            else
+            {
+                if (Vector3.Dot(Vector3.Cross(ab, abc), ao) > 0)
+                {
+                    if (Vector3.Dot(ab, ao) > 0)
+                    {
+                        simplex.RemoveAt(0);
+                        direction = Vector3.Cross(Vector3.Cross(ab, ao), ab);
+                    }
+                    else
+                    {
+                        simplex.Clear();
+                        simplex.Add(a);
+                        direction = ao;
+                    }
+                }
+                else
+                {
+                    if (Vector3.Dot(abc, ao) > 0)
+                    {
+                        direction = abc;
+                    }
+                    else
+                    {
+                        (simplex[0], simplex[1]) = (simplex[1], simplex[0]);
+                        direction = -abc;
+                    }
+                }
+            }
+        }
+        else if (simplex.Count == 4)
+        {
+            Vector3 a = simplex[3];
+            Vector3 b = simplex[2];
+            Vector3 c = simplex[1];
+            Vector3 d = simplex[0];
+
+            Vector3 ao = -a;
+
+            Vector3 abc = Vector3.Cross(b - a, c - a);
+            Vector3 acd = Vector3.Cross(c - a, d - a);
+            Vector3 adb = Vector3.Cross(d - a, b - a);
+
+            if (Vector3.Dot(abc, ao) > 0)
+            {
+                simplex.RemoveAt(0);
+                direction = abc;
+                return false;
+            }
+
+            if (Vector3.Dot(acd, ao) > 0)
+            {
+                simplex.RemoveAt(2);
+                direction = acd;
+                return false;
+            }
+
+            if (Vector3.Dot(adb, ao) > 0)
+            {
+                simplex.RemoveAt(1);
+                direction = adb;
+                return false;
+            }
+            
+            return true;
+        }
+        return false;
+    }
+    
     public List<CollisionPair> DetectCollisions()
     {
         List<(int, int)> broadPhasePairs = new List<(int, int)>();

@@ -26,6 +26,24 @@ public class CustomRigidbody : MonoBehaviour
     public void SetVelocity(Vector3 velocity) { this.velocity = velocity; }
     public void AddVelocity(Vector3 deltaV) { velocity += deltaV; }
     
+    public void AddForce(Vector3 force)
+    {
+        if (bodyType != BodyType.Dynamic)
+            return;
+        
+        Vector3 acceleration = force / mass;
+        velocity += acceleration * Time.fixedDeltaTime;
+    }
+    
+    public void AddImpulse(Vector3 impulse)
+    {
+        if (bodyType != BodyType.Dynamic)
+            return;
+        
+        Vector3 deltaVelocity = impulse / mass;
+        velocity += deltaVelocity;
+    }
+    
     private void ApplyAirResistance()
     {
         if (velocity.sqrMagnitude < 0.0001f)

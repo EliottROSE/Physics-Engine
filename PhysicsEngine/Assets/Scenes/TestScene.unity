@@ -1024,7 +1024,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e1475b270db6914faff3b83e5131807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bodyType: 0
+  bodyType: 2
   mass: 1
   airDensity: 1.225
 --- !u!114 &1970606270
