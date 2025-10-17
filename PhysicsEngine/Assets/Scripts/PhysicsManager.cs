@@ -667,6 +667,13 @@ public class PhysicsManager : MonoBehaviour
     private static bool CheckGJKCollision(CustomCollider collider1, CustomCollider collider2, uint maxIterations,
         ref List<Vector3> outGJKPoints)
     {
+        float colliderScaleMagnitude = Mathf.Max(
+            collider1.transform.lossyScale.magnitude,
+            collider2.transform.lossyScale.magnitude
+        );
+        
+        float eps = 1e-6f * Mathf.Max(1f, colliderScaleMagnitude);
+        
         Vector3 direction = collider2.transform.position - collider1.transform.position;
         if (direction == Vector3.zero)
             direction = Vector3.right;
@@ -679,12 +686,12 @@ public class PhysicsManager : MonoBehaviour
         {
             Vector3 newPoint = GetSupport(collider1, collider2, direction);
 
-            if (Vector3.Dot(newPoint, direction) <= 0f)
+            if (Vector3.Dot(newPoint, direction) <= eps)
                 return false;
 
             simplex.Add(newPoint);
 
-            if (ContainsOrigin(simplex, ref direction))
+            if (ContainsOrigin(simplex, ref direction, eps))
             {
                 outGJKPoints = simplex;
                 return true;
@@ -699,7 +706,7 @@ public class PhysicsManager : MonoBehaviour
         return collider1.GetSupport(direction) - collider2.GetSupport(-direction);
     }
 
-    private static bool ContainsOrigin(List<Vector3> simplex, ref Vector3 direction)
+    private static bool ContainsOrigin(List<Vector3> simplex, ref Vector3 direction, float eps)
     {
         if (simplex.Count == 2)
         {
@@ -709,7 +716,7 @@ public class PhysicsManager : MonoBehaviour
             Vector3 ab = b - a;
             Vector3 ao = -a;
 
-            if (Vector3.Dot(ab, ao) > 0)
+            if (Vector3.Dot(ab, ao) > eps)
             {
                 direction = Vector3.Cross(Vector3.Cross(ab, ao), ab);
             }
@@ -731,9 +738,9 @@ public class PhysicsManager : MonoBehaviour
 
             Vector3 abc = Vector3.Cross(ab, ac);
 
-            if (Vector3.Dot(Vector3.Cross(abc, ac), ao) > 0)
+            if (Vector3.Dot(Vector3.Cross(abc, ac), ao) > eps)
             {
-                if (Vector3.Dot(ac, ao) > 0)
+                if (Vector3.Dot(ac, ao) > eps)
                 {
                     simplex.RemoveAt(1);
                     direction = Vector3.Cross(Vector3.Cross(ac, ao), ac);
@@ -741,14 +748,14 @@ public class PhysicsManager : MonoBehaviour
                 else
                 {
                     simplex.RemoveAt(0);
-                    return ContainsOrigin(simplex, ref direction);
+                    return ContainsOrigin(simplex, ref direction, eps);
                 }
             }
             else
             {
-                if (Vector3.Dot(Vector3.Cross(ab, abc), ao) > 0)
+                if (Vector3.Dot(Vector3.Cross(ab, abc), ao) > eps)
                 {
-                    if (Vector3.Dot(ab, ao) > 0)
+                    if (Vector3.Dot(ab, ao) > eps)
                     {
                         simplex.RemoveAt(0);
                         direction = Vector3.Cross(Vector3.Cross(ab, ao), ab);
@@ -762,7 +769,7 @@ public class PhysicsManager : MonoBehaviour
                 }
                 else
                 {
-                    if (Vector3.Dot(abc, ao) > 0)
+                    if (Vector3.Dot(abc, ao) > eps)
                     {
                         direction = abc;
                     }
@@ -787,21 +794,21 @@ public class PhysicsManager : MonoBehaviour
             Vector3 acd = Vector3.Cross(c - a, d - a);
             Vector3 adb = Vector3.Cross(d - a, b - a);
 
-            if (Vector3.Dot(abc, ao) > 0)
+            if (Vector3.Dot(abc, ao) > eps)
             {
                 simplex.RemoveAt(0);
                 direction = abc;
                 return false;
             }
 
-            if (Vector3.Dot(acd, ao) > 0)
+            if (Vector3.Dot(acd, ao) > eps)
             {
                 simplex.RemoveAt(2);
                 direction = acd;
                 return false;
             }
 
-            if (Vector3.Dot(adb, ao) > 0)
+            if (Vector3.Dot(adb, ao) > eps)
             {
                 simplex.RemoveAt(1);
                 direction = adb;
