@@ -46,6 +46,10 @@ public class CustomBoxCollider : CustomCollider
 
     public override Vector3 GetSupport(Vector3 direction)
     {
+        if (direction.sqrMagnitude < 1e-12f)
+            direction = Vector3.right;
+        else
+            direction.Normalize();
         Vector3 localDir = Quaternion.Inverse(rotation) * direction;
         
         Vector3 halfExtents = scale * 0.5f;

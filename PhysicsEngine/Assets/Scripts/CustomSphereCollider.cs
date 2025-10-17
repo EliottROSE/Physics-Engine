@@ -18,6 +18,10 @@ public class CustomSphereCollider : CustomCollider
 
     public override Vector3 GetSupport(Vector3 direction)
     {
+        if (direction.sqrMagnitude < 1e-12f)
+            direction = Vector3.right;
+        else
+            direction.Normalize();
         return position + radius * direction;
     }
     

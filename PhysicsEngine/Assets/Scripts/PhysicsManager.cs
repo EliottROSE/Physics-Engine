@@ -290,7 +290,7 @@ public class PhysicsManager : MonoBehaviour
                 dist *= -1;
 
             // If distance between new distance from support point and the base distance, the new point is in resonnable distance from the plan
-            if (supportDist - dist < eps)
+            if (supportDist - dist < 1e-4f)
             {
                 CollisionPair pair = new CollisionPair();
                 pair.normal = normal;
@@ -299,7 +299,7 @@ public class PhysicsManager : MonoBehaviour
                 Vector3 s2 = collider2.GetSupport(normal);
                 pair.point = (s1 + s2) * 0.5f;
                 
-                for (int j = 0; j < epaSimplex.Count - 1; j++)
+                for (int j = 0; j < epaSimplex.Count; j++)
                 {
                     Debug.DrawLine(epaSimplex[j].a, epaSimplex[j].b, Color.blue);
                     Debug.DrawLine(epaSimplex[j].b, epaSimplex[j].c, Color.blue);
@@ -317,7 +317,7 @@ public class PhysicsManager : MonoBehaviour
         }
 
         Debug.Log("EPA Failed");
-        for (int i = 0; i < epaSimplex.Count - 1; i++)
+        for (int i = 0; i < epaSimplex.Count; i++)
         {
             Debug.DrawLine(epaSimplex[i].a, epaSimplex[i].b, Color.blue);
             Debug.DrawLine(epaSimplex[i].b, epaSimplex[i].c, Color.blue);

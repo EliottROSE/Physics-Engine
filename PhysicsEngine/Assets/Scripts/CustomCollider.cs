@@ -47,6 +47,10 @@ public class CustomCollider : MonoBehaviour
 
     public virtual Vector3 GetSupport(Vector3 direction)
     {
+        if (direction.sqrMagnitude < 1e-12f)
+            direction = Vector3.right;
+        else
+            direction.Normalize();
         Vector3 support = Vector3.zero;
         float maxProjection = Mathf.NegativeInfinity;
 
