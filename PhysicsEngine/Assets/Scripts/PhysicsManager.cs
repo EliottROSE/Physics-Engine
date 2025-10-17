@@ -92,7 +92,16 @@ public class PhysicsManager : MonoBehaviour
             if (isNormalComputed)
                 return normal;
 
-            normal = Vector3.Cross(b - a, c - a).normalized;
+            normal = Vector3.Cross(b - a, c - a);
+            if (normal.sqrMagnitude <= 1e-12f)
+            {
+                normal = Vector3.up;
+            }
+            normal = normal.normalized;
+
+            if (Vector3.Dot(normal, a) < 0f)
+                normal = -normal;
+
             isNormalComputed = true;
             return normal;
         }
@@ -118,12 +127,13 @@ public class PhysicsManager : MonoBehaviour
         {
             List<Triangle> faces = new List<Triangle>(4);
 
-            if (simplex.Count < 4 || simplex.Count > 4 || simplex.Count <= 0)
+            if (simplex == null || simplex.Count != 4)
             {
-                Debug.LogError("Cannot build tetrahedron");
+                Debug.LogError("Cannot build tetrahedron: simplex must contain exactly 4 points");
                 return faces;
             }
 
+            // Construire faces; GetNormal() s'assurera de l'orientation
             faces.Add(new Triangle(simplex[0], simplex[1], simplex[2]));
             faces.Add(new Triangle(simplex[1], simplex[2], simplex[3]));
             faces.Add(new Triangle(simplex[2], simplex[3], simplex[0]));
@@ -134,20 +144,20 @@ public class PhysicsManager : MonoBehaviour
 
         public static void ReBuildPolytop(ref List<Triangle> polytope, int closestFaceIndex, Vector3 newPoint)
         {
-            float eps = 1e-6f;
+            const float eps = 1e-6f;
 
             List<int> visibleIndices = new List<int>();
             for (int i = 0; i < polytope.Count; i++)
             {
                 Triangle face = polytope[i];
                 Vector3 normal = face.GetNormal();
-
                 if (Vector3.Dot(normal, newPoint - face.a) > eps)
                     visibleIndices.Add(i);
             }
 
             if (visibleIndices.Count == 0)
             {
+                // subdiviser la face la plus proche
                 Triangle closestFace = polytope[closestFaceIndex];
                 polytope.RemoveAt(closestFaceIndex);
                 polytope.Add(new Triangle(closestFace.a, newPoint, closestFace.b));
@@ -157,89 +167,47 @@ public class PhysicsManager : MonoBehaviour
             }
 
             List<Edge> horizon = new List<Edge>();
-            foreach (int i in visibleIndices)
+            foreach (int vi in visibleIndices)
             {
-                Triangle face = polytope[i];
-                Edge[] faceEdges = new Edge[]
-                {
-                    new Edge(face.a, face.b),
-                    new Edge(face.b, face.c),
-                    new Edge(face.c, face.a)
-                };
+                Triangle face = polytope[vi];
+                Edge[] edges = { new Edge(face.a, face.b), new Edge(face.b, face.c), new Edge(face.c, face.a) };
 
-                foreach (var e in faceEdges)
+                foreach (var e in edges)
                 {
-                    bool removedReverse = false;
-                    for (int j = 0; j < horizon.Count; j++)
+                    bool foundReverse = false;
+                    for (int j = horizon.Count - 1; j >= 0; j--)
                     {
                         if (SamePoint(horizon[j].a, e.b) && SamePoint(horizon[j].b, e.a))
                         {
                             horizon.RemoveAt(j);
-                            removedReverse = true;
+                            foundReverse = true;
                             break;
                         }
-
-                        if (!removedReverse)
-                            horizon.Add(e);
                     }
+
+                    if (!foundReverse)
+                        horizon.Add(e);
                 }
             }
 
             visibleIndices.Sort();
             for (int i = visibleIndices.Count - 1; i >= 0; i--)
-            {
                 polytope.RemoveAt(visibleIndices[i]);
-            }
-            
+
             foreach (var e in horizon)
             {
                 Triangle newFace = new Triangle(e.a, e.b, newPoint);
-                Vector3 normal = newFace.GetNormal();
-
-                if (Vector3.Dot(normal, newFace.a) < 0f)
-                {
-                    newFace = new Triangle(e.b, e.a, newPoint);
-                }
-
+                if (Vector3.Dot(newFace.GetNormal(), newFace.a) < 0f)
+                    newFace.Set(e.b, e.a, newPoint);
                 polytope.Add(newFace);
             }
-
         }
-
+        
         public static bool SamePoint(Vector3 p1, Vector3 p2)
         {
-            float eps = 1e-6f;
-
-            if ((p1 - p2).sqrMagnitude < eps)
-                return true;
-
-            return false;
+            const float eps = 1e-6f;
+            return (p1 - p2).sqrMagnitude < (eps * eps);
         }
-
-        //public static void ReBuildPolytop(ref List<Triangle> polytope, int closestFaceIndex, Vector3 newPoint)
-        //{
-        //    float eps = 1e-6f;
-        //    
-        //    Triangle closestFace = polytope[closestFaceIndex];
-        //    
-        //    Vector3 AB = closestFace.b - closestFace.a;
-        //    Vector3 BC = closestFace.c - closestFace.b;
-        //    Vector3 AC = closestFace.c - closestFace.a;
-        //    
-        //    Triangle newTriangle1 = new Triangle(closestFace.a, newPoint, closestFace.c);
-        //    Triangle newTriangle2 = new Triangle(closestFace.a, newPoint, closestFace.b);
-        //    Triangle newTriangle3 = new Triangle(closestFace.b, newPoint, closestFace.c);
-        //    
-        //    polytope.RemoveAt(closestFaceIndex);
-        //    polytope.Add(newTriangle1);
-        //    polytope.Add(newTriangle2);
-        //    polytope.Add(newTriangle3);            
-        //}
-    }
-
-    private static bool ApproximatelyEqual(Vector3 v1, Vector3 v2, float eps = 1e-6f)
-    {
-        return Vector3.SqrMagnitude(v1 - v2) < eps * eps;
     }
 
     private static int GetClosestFace(List<Triangle> faces)
@@ -252,7 +220,7 @@ public class PhysicsManager : MonoBehaviour
             Triangle face = faces[i];
             Vector3 n = face.GetNormal();
 
-            float distance = Vector3.Dot(n, -face.a);
+            float distance = Vector3.Dot(n, face.a);
 
             if (distance < minDistance)
             {
@@ -307,13 +275,16 @@ public class PhysicsManager : MonoBehaviour
             int closestFaceIndex = GetClosestFace(epaSimplex);
             Triangle closestFace = epaSimplex[closestFaceIndex];
 
+            Vector3 normal = closestFace.GetNormal();
+            
+            
             // Get a new support point
-            Vector3 supportPoint = GetSupport(collider1, collider2, -closestFace.GetNormal());
+            Vector3 supportPoint = GetSupport(collider1, collider2, normal);
 
             // Find the distance to the origin
-            float dist = Vector3.Dot(closestFace.GetNormal(), -closestFace.a);
+            float dist = Vector3.Dot(closestFace.GetNormal(), closestFace.a);
             // Find the distance to the origin with this new support point
-            float supportDist = Vector3.Dot(closestFace.GetNormal(), -supportPoint);
+            float supportDist = Vector3.Dot(closestFace.GetNormal(), supportPoint);
 
             if (dist < eps)
                 dist *= -1;
@@ -322,9 +293,22 @@ public class PhysicsManager : MonoBehaviour
             if (supportDist - dist < eps)
             {
                 CollisionPair pair = new CollisionPair();
-                pair.normal = -closestFace.GetNormal();
+                pair.normal = normal;
                 pair.penetration = dist;
-                pair.point = collider1.GetSupport(-closestFace.GetNormal());
+                Vector3 s1 = collider1.GetSupport(-normal);
+                Vector3 s2 = collider2.GetSupport(normal);
+                pair.point = (s1 + s2) * 0.5f;
+                
+                for (int j = 0; j < epaSimplex.Count - 1; j++)
+                {
+                    Debug.DrawLine(epaSimplex[j].a, epaSimplex[j].b, Color.blue);
+                    Debug.DrawLine(epaSimplex[j].b, epaSimplex[j].c, Color.blue);
+                    Debug.DrawLine(epaSimplex[j].c, epaSimplex[j].a, Color.blue);
+                    Vector3 center = (epaSimplex[j].a + epaSimplex[j].b + epaSimplex[j].c) / 3f;
+
+                    Debug.DrawLine(center, center + epaSimplex[j].GetNormal() * 0.5f, Color.green);
+                }
+                
                 return pair;
             }
 
@@ -396,6 +380,7 @@ public class PhysicsManager : MonoBehaviour
 
         foreach (CollisionPair pair in pairs)
         {
+            
         }
     }
 
@@ -950,3 +935,4 @@ public class PhysicsManager : MonoBehaviour
 
     #endregion
 }
+
