@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.VisualScripting;
 using Unity.VisualScripting.FullSerializer.Internal;
+using UnityEditor.Experimental.GraphView;
 using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
@@ -26,6 +27,7 @@ public class PhysicsManager : MonoBehaviour
     #endregion
 
     #region Node
+
     public class Node
     {
         public int parentIndex; // -1 if root
@@ -51,14 +53,26 @@ public class PhysicsManager : MonoBehaviour
             ColliderIndex = Index;
         }
     }
+
     #endregion
-    
+
+    struct Edge
+    {
+        public Vector3 a, b;
+
+        public Edge(Vector3 a, Vector3 b)
+        {
+            this.a = a;
+            this.b = b;
+        }
+    }
+
     public class Triangle
     {
         public Vector3 a, b, c;
         private Vector3 normal;
         private bool isNormalComputed = false;
-        
+
         public Triangle(Vector3 _a, Vector3 _b, Vector3 _c)
         {
             Set(_a, _b, _c);
@@ -66,9 +80,9 @@ public class PhysicsManager : MonoBehaviour
 
         public void Set(Vector3 _a, Vector3 _b, Vector3 _c)
         {
-                this.a = _a;
-                this.b = _b;
-                this.c = _c;
+            this.a = _a;
+            this.b = _b;
+            this.c = _c;
 
             isNormalComputed = false;
         }
@@ -77,11 +91,28 @@ public class PhysicsManager : MonoBehaviour
         {
             if (isNormalComputed)
                 return normal;
-            
+
             normal = Vector3.Cross(b - a, c - a).normalized;
             isNormalComputed = true;
             return normal;
         }
+
+        public bool HasEdge(Vector3 p1, Vector3 p2)
+        {
+            return (AlmostEqualVector3(a, p1) && AlmostEqualVector3(b, p2)) ||
+                   (AlmostEqualVector3(b, p1) && AlmostEqualVector3(c, p2)) ||
+                   (AlmostEqualVector3(c, p1) && AlmostEqualVector3(a, p2)) ||
+                   (AlmostEqualVector3(a, p2) && AlmostEqualVector3(b, p1)) ||
+                   (AlmostEqualVector3(b, p2) && AlmostEqualVector3(c, p1)) ||
+                   (AlmostEqualVector3(c, p2) && AlmostEqualVector3(a, p1));
+        }
+
+        private bool AlmostEqualVector3(Vector3 v1, Vector3 v2)
+        {
+            const float eps = 1e-6f;
+            return (v1 - v2).sqrMagnitude <= (eps * eps);
+        }
+
 
         public static List<Triangle> BuildGJKTetrahedron(List<Vector3> simplex)
         {
@@ -93,60 +124,156 @@ public class PhysicsManager : MonoBehaviour
                 return faces;
             }
 
-            faces[0] = new Triangle(simplex[0], simplex[1], simplex[2]);
-            faces[1] = new Triangle(simplex[1], simplex[2], simplex[3]);
-            faces[2] = new Triangle(simplex[2], simplex[3], simplex[0]);
-            faces[3] = new Triangle(simplex[3], simplex[0], simplex[1]);
-            
+            faces.Add(new Triangle(simplex[0], simplex[1], simplex[2]));
+            faces.Add(new Triangle(simplex[1], simplex[2], simplex[3]));
+            faces.Add(new Triangle(simplex[2], simplex[3], simplex[0]));
+            faces.Add(new Triangle(simplex[3], simplex[0], simplex[1]));
+
             return faces;
         }
-        
-        public static List<Triangle> BuildGJKTetrahedron(ref List<Triangle> tetrahedron, List<Vector3> newPoints)
+
+        public static void ReBuildPolytop(ref List<Triangle> polytope, int closestFaceIndex, Vector3 newPoint)
         {
-            List<Triangle> faces = new List<Triangle>();
+            float eps = 1e-6f;
+
+            List<int> visibleIndices = new List<int>();
+            for (int i = 0; i < polytope.Count; i++)
+            {
+                Triangle face = polytope[i];
+                Vector3 normal = face.GetNormal();
+
+                if (Vector3.Dot(normal, newPoint - face.a) > eps)
+                    visibleIndices.Add(i);
+            }
+
+            if (visibleIndices.Count == 0)
+            {
+                Triangle closestFace = polytope[closestFaceIndex];
+                polytope.RemoveAt(closestFaceIndex);
+                polytope.Add(new Triangle(closestFace.a, newPoint, closestFace.b));
+                polytope.Add(new Triangle(closestFace.b, newPoint, closestFace.c));
+                polytope.Add(new Triangle(closestFace.c, newPoint, closestFace.a));
+                return;
+            }
+
+            List<Edge> horizon = new List<Edge>();
+            foreach (int i in visibleIndices)
+            {
+                Triangle face = polytope[i];
+                Edge[] faceEdges = new Edge[]
+                {
+                    new Edge(face.a, face.b),
+                    new Edge(face.b, face.c),
+                    new Edge(face.c, face.a)
+                };
+
+                foreach (var e in faceEdges)
+                {
+                    bool removedReverse = false;
+                    for (int j = 0; j < horizon.Count; j++)
+                    {
+                        if (SamePoint(horizon[j].a, e.b) && SamePoint(horizon[j].b, e.a))
+                        {
+                            horizon.RemoveAt(j);
+                            removedReverse = true;
+                            break;
+                        }
+
+                        if (!removedReverse)
+                            horizon.Add(e);
+                    }
+                }
+            }
+
+            visibleIndices.Sort();
+            for (int i = visibleIndices.Count - 1; i >= 0; i--)
+            {
+                polytope.RemoveAt(visibleIndices[i]);
+            }
             
-            
-            
-            return faces;
+            foreach (var e in horizon)
+            {
+                Triangle newFace = new Triangle(e.a, e.b, newPoint);
+                Vector3 normal = newFace.GetNormal();
+
+                if (Vector3.Dot(normal, newFace.a) < 0f)
+                {
+                    newFace = new Triangle(e.b, e.a, newPoint);
+                }
+
+                polytope.Add(newFace);
+            }
+
         }
+
+        public static bool SamePoint(Vector3 p1, Vector3 p2)
+        {
+            float eps = 1e-6f;
+
+            if ((p1 - p2).sqrMagnitude < eps)
+                return true;
+
+            return false;
+        }
+
+        //public static void ReBuildPolytop(ref List<Triangle> polytope, int closestFaceIndex, Vector3 newPoint)
+        //{
+        //    float eps = 1e-6f;
+        //    
+        //    Triangle closestFace = polytope[closestFaceIndex];
+        //    
+        //    Vector3 AB = closestFace.b - closestFace.a;
+        //    Vector3 BC = closestFace.c - closestFace.b;
+        //    Vector3 AC = closestFace.c - closestFace.a;
+        //    
+        //    Triangle newTriangle1 = new Triangle(closestFace.a, newPoint, closestFace.c);
+        //    Triangle newTriangle2 = new Triangle(closestFace.a, newPoint, closestFace.b);
+        //    Triangle newTriangle3 = new Triangle(closestFace.b, newPoint, closestFace.c);
+        //    
+        //    polytope.RemoveAt(closestFaceIndex);
+        //    polytope.Add(newTriangle1);
+        //    polytope.Add(newTriangle2);
+        //    polytope.Add(newTriangle3);            
+        //}
     }
-    
-    private static Triangle GetClosestFace(List<Triangle> faces)
+
+    private static bool ApproximatelyEqual(Vector3 v1, Vector3 v2, float eps = 1e-6f)
     {
-        Triangle closest = new Triangle(Vector3.zero, Vector3.zero, Vector3.zero);
+        return Vector3.SqrMagnitude(v1 - v2) < eps * eps;
+    }
+
+    private static int GetClosestFace(List<Triangle> faces)
+    {
+        int closest = 0;
         float minDistance = float.MaxValue;
 
-        foreach (Triangle face in faces)
+        for (int i = 0; i < faces.Count; i++)
         {
+            Triangle face = faces[i];
             Vector3 n = face.GetNormal();
 
             float distance = Vector3.Dot(n, -face.a);
-            
+
             if (distance < minDistance)
             {
                 minDistance = distance;
-                closest = face;
+                closest = i;
             }
         }
 
         return closest;
     }
 
-    struct ColliderPair
-    {
-        public int collidersIndex;
-        public int boundIndex;
-    }
-
     public struct CollisionPair
     {
         public Rigidbody body1;
         public Rigidbody body2;
-        
+
         public Vector3 point; // Point of collision
         public Vector3 normal; // normal of collision point
         public float penetration; // how far the rigidbodies enter in collision
     }
+
     // Existing collider in the scene
     private List<CustomCollider> colliders = new List<CustomCollider>();
 
@@ -158,7 +285,7 @@ public class PhysicsManager : MonoBehaviour
 
     // AABB tree
     private List<Node> boundsTree = new List<Node>();
-    
+
     List<int> availableBoundsTreeIndexes = new List<int>();
     List<int> availableBoundsIndexes = new List<int>();
 
@@ -166,50 +293,59 @@ public class PhysicsManager : MonoBehaviour
     private int root;
 
     // Collider1, Collider2, faces = final samplex of GJK, maxIterations = maximum number of iterations
-    public static CollisionPair ExpendingPolytopeAlgorithm(CustomCollider collider1, CustomCollider collider2, List<Vector3> gjkSimplex, int maxIterations)
+    public static CollisionPair ExpendingPolytopeAlgorithm(CustomCollider collider1, CustomCollider collider2,
+        List<Vector3> gjkSimplex, int maxIterations)
     {
         // Value use to check value close to zero with float
         float eps = 1e-6f;
-        
+
         List<Triangle> epaSimplex = Triangle.BuildGJKTetrahedron(gjkSimplex);
-        
-        // Summ create from GJK result, will expend on each iteration until we find the closest face
-        
-        
+
         for (int i = 0; i < maxIterations; i++)
         {
             // get closest face to the origin
-            Triangle closestFace = GetClosestFace(epaSimplex);
-            
+            int closestFaceIndex = GetClosestFace(epaSimplex);
+            Triangle closestFace = epaSimplex[closestFaceIndex];
+
             // Get a new support point
             Vector3 supportPoint = GetSupport(collider1, collider2, -closestFace.GetNormal());
-            
+
             // Find the distance to the origin
             float dist = Vector3.Dot(closestFace.GetNormal(), -closestFace.a);
             // Find the distance to the origin with this new support point
             float supportDist = Vector3.Dot(closestFace.GetNormal(), -supportPoint);
 
+            if (dist < eps)
+                dist *= -1;
+
             // If distance between new distance from support point and the base distance, the new point is in resonnable distance from the plan
             if (supportDist - dist < eps)
             {
-                
-
                 CollisionPair pair = new CollisionPair();
                 pair.normal = closestFace.GetNormal();
                 pair.penetration = dist;
-                
+                pair.point = collider1.GetSupport(-closestFace.GetNormal());
                 return pair;
-                
             }
-            // Add new support point to polygon
 
+            // Add new support point to polygon
+            Triangle.ReBuildPolytop(ref epaSimplex, closestFaceIndex, supportPoint);
         }
+
+        Debug.Log("EPA Failed");
+        for (int i = 0; i < epaSimplex.Count - 1; i++)
+        {
+            Debug.DrawLine(epaSimplex[i].a, epaSimplex[i].b, Color.blue);
+            Debug.DrawLine(epaSimplex[i].b, epaSimplex[i].c, Color.blue);
+            Debug.DrawLine(epaSimplex[i].c, epaSimplex[i].a, Color.blue);
+        }
+
+        Debug.Log(epaSimplex.Count);
         return new CollisionPair { };
     }
 
     void Start()
     {
-        
         colliders = FindObjectsOfType<CustomCollider>().ToList();
 
         foreach (CustomCollider collider in colliders)
@@ -249,7 +385,7 @@ public class PhysicsManager : MonoBehaviour
         //    //colliders[i].UpdateCollider(); 
         //    collidersBounds[i] = colliders[i].GetAABB();
         //}
-        
+
         boundsTree.Clear();
         bounds.Clear();
         root = 0;
@@ -257,10 +393,16 @@ public class PhysicsManager : MonoBehaviour
         availableBoundsIndexes.Clear();
         BuildAABBTree();
         List<CollisionPair> pairs = DetectCollisions();
+
+        foreach (CollisionPair pair in pairs)
+        {
+        }
     }
 
     // AABB Tree functions
+
     #region Tree
+
     public void BuildAABBTree()
     {
         if (collidersBounds.Count == 0)
@@ -273,7 +415,8 @@ public class PhysicsManager : MonoBehaviour
         // Special case if there is only one collider, it become the root
         if (collidersBounds.Count == 1)
         {
-            Node first = new Node(-1, -1, -1, true, 0, 0); // 0 beceause there is only one collider so only one aabb in list
+            Node first =
+                new Node(-1, -1, -1, true, 0, 0); // 0 beceause there is only one collider so only one aabb in list
             boundsTree.Add(first);
             root = 0;
             return;
@@ -305,7 +448,7 @@ public class PhysicsManager : MonoBehaviour
         {
             float leftValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.leftIndex)], bound);
             float rightValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.rightIndex)], bound);
-            
+
             if (leftValue < rightValue)
             {
                 currentNode = boundsTree[currentNode.leftIndex];
@@ -436,28 +579,32 @@ public class PhysicsManager : MonoBehaviour
         if (boundsTree[siblingIndex].parentIndex != -1)
             UpdateFromChildren(boundsTree[siblingIndex].parentIndex);
     }
-    
+
     private void UpdateFromChildren(int nodeIndex)
     {
         AABB leftBound = bounds[GetBoundIndexFromTree(boundsTree[nodeIndex].leftIndex)];
-        AABB rightBound = bounds[GetBoundIndexFromTree(boundsTree[nodeIndex].rightIndex)];;
+        AABB rightBound = bounds[GetBoundIndexFromTree(boundsTree[nodeIndex].rightIndex)];
+        ;
         bounds[boundsTree[nodeIndex].AABBIndex].SetAABB(leftBound, rightBound);
         int parentIndex = boundsTree[nodeIndex].parentIndex;
         if (parentIndex != -1)
             UpdateFromChildren(parentIndex);
     }
+
     #endregion
 
     // AABB Tree helper functions, add to list, get index, etc...
+
     #region TreeHelperFunctions
+
     public int GetBoundIndexFromTree(int treeIndex)
     {
         if (treeIndex < 0 || treeIndex >= boundsTree.Count)
         {
-            Debug.LogError("Invalid tree index");    
+            Debug.LogError("Invalid tree index");
             return -1;
         }
-        
+
         return boundsTree[treeIndex].AABBIndex;
     }
 
@@ -468,6 +615,7 @@ public class PhysicsManager : MonoBehaviour
             boundsTree.Add(node);
             return;
         }
+
         boundsTree[availableBoundsTreeIndexes[0]] = node;
         availableBoundsTreeIndexes.RemoveAt(0);
     }
@@ -479,9 +627,11 @@ public class PhysicsManager : MonoBehaviour
             bounds.Add(bound);
             return;
         }
+
         bounds[availableBoundsIndexes[0]] = bound;
         availableBoundsIndexes.RemoveAt(0);
     }
+
     public int AddAndReturnNodeIndex(Node node)
     {
         if (availableBoundsTreeIndexes.Count == 0)
@@ -509,11 +659,13 @@ public class PhysicsManager : MonoBehaviour
         bounds[index] = bound;
         return index;
     }
+
     #endregion
-    
+
     #region MainCollisionFunctions
 
-    private static bool CheckGJKCollision(CustomCollider collider1, CustomCollider collider2, uint maxIterations)
+    private static bool CheckGJKCollision(CustomCollider collider1, CustomCollider collider2, uint maxIterations,
+        ref List<Vector3> outGJKPoints)
     {
         Vector3 direction = collider2.transform.position - collider1.transform.position;
         if (direction == Vector3.zero)
@@ -533,7 +685,10 @@ public class PhysicsManager : MonoBehaviour
             simplex.Add(newPoint);
 
             if (ContainsOrigin(simplex, ref direction))
+            {
+                outGJKPoints = simplex;
                 return true;
+            }
         }
 
         return false;
@@ -652,12 +807,13 @@ public class PhysicsManager : MonoBehaviour
                 direction = adb;
                 return false;
             }
-            
+
             return true;
         }
+
         return false;
     }
-    
+
     public List<CollisionPair> DetectCollisions()
     {
         List<(int, int)> broadPhasePairs = new List<(int, int)>();
@@ -666,7 +822,7 @@ public class PhysicsManager : MonoBehaviour
             return new List<CollisionPair>();
 
         DetectAllCollisionsFromNode(root, broadPhasePairs);
-        List<CollisionPair> colliderPairs = new List<CollisionPair>();
+        List<CollisionPair> collisionPairs = new List<CollisionPair>();
 
         foreach ((int a, int b) in broadPhasePairs)
         {
@@ -675,18 +831,23 @@ public class PhysicsManager : MonoBehaviour
 
             CustomCollider colliderA = colliders[boundsTree[a].ColliderIndex];
             CustomCollider colliderB = colliders[boundsTree[b].ColliderIndex];
-            if (CheckGJKCollision(colliderA, colliderB, 64))
+
+            List<Vector3> outGJKPoints = new List<Vector3>();
+            if (CheckGJKCollision(colliderA, colliderB, 64, ref outGJKPoints))
             {
-                 Debug.Log($"Collider {a} collide with Collider {b}");
+                Debug.Log("GJK COllision");
+                CollisionPair pair = ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);
+                collisionPairs.Add(pair);
+                Debug.DrawLine(pair.point, pair.point + pair.normal * pair.penetration,  Color.blue);
+                Debug.Log("Hit point : " + pair.point);
+                Debug.Log("Hit normal : " + pair.normal);
+                Debug.Log("Hit penetration : " + pair.penetration);
             }
-           //{
-           //
-           //}
-                
         }
 
-        return colliderPairs;
+        return collisionPairs;
     }
+
     public void DetectAllCollisionsFromNode(int nodeIndex, List<(int, int)> outPairs)
     {
         if (nodeIndex == -1)
@@ -712,6 +873,7 @@ public class PhysicsManager : MonoBehaviour
             {
                 DetectCollisionPairsRecursive(node.leftIndex, node.rightIndex, outPairs);
             }
+
             return;
         }
 
@@ -729,6 +891,7 @@ public class PhysicsManager : MonoBehaviour
             {
                 outPairs.Add((nodeIndex1, nodeIndex2));
             }
+
             return;
         }
 
@@ -763,7 +926,8 @@ public class PhysicsManager : MonoBehaviour
         Node leftNode = boundsTree[node.leftIndex];
         Node rightNode = boundsTree[node.rightIndex];
 
-        if ((leftNode.isLeaf && rightNode.isLeaf) && AABB.CheckAABBCollision(bounds[leftNode.AABBIndex], bounds[rightNode.AABBIndex]))
+        if ((leftNode.isLeaf && rightNode.isLeaf) &&
+            AABB.CheckAABBCollision(bounds[leftNode.AABBIndex], bounds[rightNode.AABBIndex]))
         {
             outPairs.Add((node.leftIndex, node.rightIndex));
         }
@@ -775,7 +939,7 @@ public class PhysicsManager : MonoBehaviour
         {
             DetectCollisionPair(node.rightIndex, outPairs);
         }
-
     }
+
     #endregion
 }
