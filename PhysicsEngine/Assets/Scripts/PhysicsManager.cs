@@ -301,6 +301,20 @@ public class PhysicsManager : MonoBehaviour
                 Vector3 s1 = collider1.GetSupport(-normal);
                 Vector3 s2 = collider2.GetSupport(normal);
                 pair.point = (s1 + s2) * 0.5f;
+                CustomRigidbody body1;
+                CustomRigidbody body2;
+                if (!collider1.gameObject.TryGetComponent<CustomRigidbody>(out body1))
+                {
+                    body1 = collider1.gameObject.AddComponent<CustomRigidbody>();
+                }
+                
+                if (!collider2.gameObject.TryGetComponent<CustomRigidbody>(out body2))
+                {
+                    body2 = collider2.gameObject.AddComponent<CustomRigidbody>();
+                }
+
+                pair.body1 = body1;
+                pair.body2 = body2;
                 
                 for (int j = 0; j < epaSimplex.Count; j++)
                 {
@@ -336,10 +350,15 @@ public class PhysicsManager : MonoBehaviour
         if (collisionPairs.Count == 0)
             return;
         
+        Debug.Log($"Pairs to resolve: {collisionPairs.Count}");
+        
         foreach (CollisionPair pair in collisionPairs)
         {
             CustomRigidbody body1 = pair.body1;
             CustomRigidbody body2 = pair.body2;
+            
+            if (!body1 || !body2)
+                continue;
 
             if (body1.Type != CustomRigidbody.BodyType.Dynamic && body2.Type != CustomRigidbody.BodyType.Dynamic)
                 continue;
@@ -357,6 +376,8 @@ public class PhysicsManager : MonoBehaviour
                 continue;
 
             float restitution = Mathf.Min(body1.Restitution, body2.Restitution);
+            
+            Debug.Log($"Restitution: {restitution}");
             
             float invMass1 = body1.GetInverseMass();
             float invMass2 = body2.GetInverseMass();
@@ -455,10 +476,7 @@ public class PhysicsManager : MonoBehaviour
         BuildAABBTree();
         List<CollisionPair> pairs = DetectCollisions();
 
-        foreach (CollisionPair pair in pairs)
-        {
-            
-        }
+        ResolveCollisions(pairs);
     }
 
     // AABB Tree functions
@@ -895,8 +913,8 @@ public class PhysicsManager : MonoBehaviour
 
         foreach ((int a, int b) in broadPhasePairs)
         {
-            if (boundsTree[a].isLeaf && boundsTree[b].isLeaf)
-                Debug.Log($"AABB {a} collide with AABB {b}");
+            //if (boundsTree[a].isLeaf && boundsTree[b].isLeaf)
+            //    Debug.Log($"AABB {a} collide with AABB {b}");
 
             CustomCollider colliderA = colliders[boundsTree[a].ColliderIndex];
             CustomCollider colliderB = colliders[boundsTree[b].ColliderIndex];
@@ -915,9 +933,9 @@ public class PhysicsManager : MonoBehaviour
                 Debug.DrawLine(p - Vector3.up * size, p + Vector3.up * size, Color.green, 10f);
                 Debug.DrawLine(p - Vector3.forward * size, p + Vector3.forward * size, Color.yellow, 10f);
                 
-                Debug.Log("Hit point : " + pair.point);
-                Debug.Log("Hit normal : " + pair.normal);
-                Debug.Log("Hit penetration : " + pair.penetration);
+                //Debug.Log("Hit point : " + pair.point);
+                //Debug.Log("Hit normal : " + pair.normal);
+                //Debug.Log("Hit penetration : " + pair.penetration);
             }
         }
 
