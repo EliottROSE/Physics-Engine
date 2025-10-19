@@ -12,6 +12,7 @@ public class PhysicsManager : MonoBehaviour
 {
     [SerializeField] private float penetrationPercentage = 0.4f;
     [SerializeField] private float penetrationAllowance = 0.1f;
+    [SerializeField] private float bounceThreshold = 0.5f;
     
     #region Singleton
 
@@ -350,6 +351,8 @@ public class PhysicsManager : MonoBehaviour
         if (collisionPairs.Count == 0)
             return;
         
+        const float eps = 1e-5f;
+        
         Debug.Log($"Pairs to resolve: {collisionPairs.Count}");
         
         foreach (CollisionPair pair in collisionPairs)
@@ -363,25 +366,30 @@ public class PhysicsManager : MonoBehaviour
             if (body1.Type != CustomRigidbody.BodyType.Dynamic && body2.Type != CustomRigidbody.BodyType.Dynamic)
                 continue;
             
-            Vector3 normal = pair.normal;
+            Vector3 normal = pair.normal.sqrMagnitude > eps ? pair.normal.normalized : Vector3.up;
             
             Vector3 ab  = body2.Center - body1.Center;
-            if (Vector3.Dot(ab, normal) < float.Epsilon)
+            if (Vector3.Dot(ab, normal) <= 0f)
                 normal = -normal;
             
             Vector3 relativeVelocity = body2.Velocity - body1.Velocity;
             float velocityAlongNormal = Vector3.Dot(relativeVelocity, normal);
             
-            if (velocityAlongNormal > float.Epsilon)
+            if (velocityAlongNormal > 0f)
                 continue;
 
             float restitution = Mathf.Min(body1.Restitution, body2.Restitution);
+            
+            if (Mathf.Abs(restitution) < bounceThreshold)
+                restitution = 0f;
             
             Debug.Log($"Restitution: {restitution}");
             
             float invMass1 = body1.GetInverseMass();
             float invMass2 = body2.GetInverseMass();
             float totalInvMass = invMass1 + invMass2;
+            if (totalInvMass <= eps)
+                continue;
             
             float impulseMagnitude = -(1 + restitution) * velocityAlongNormal;
             impulseMagnitude /= totalInvMass;
@@ -393,36 +401,45 @@ public class PhysicsManager : MonoBehaviour
             
             // Friction impulse
             Vector3 tangent = relativeVelocity - Vector3.Dot(relativeVelocity, normal) * normal;
-            if (tangent.sqrMagnitude > float.Epsilon)
+            if (tangent.sqrMagnitude > eps)
             {
                 tangent.Normalize();
                 float velocityAlongTangent = Vector3.Dot(relativeVelocity, tangent);
 
-                if (velocityAlongTangent > float.Epsilon)
+                if (velocityAlongTangent > eps)
                 {
                     float staticFriction = Mathf.Sqrt(body1.StaticFriction * body2.StaticFriction);
                     float dynamicFriction = Mathf.Sqrt(body1.DynamicFriction * body2.DynamicFriction);
                     float frictionImpulseMag = -velocityAlongTangent / totalInvMass;
 
                     float maxFriction = impulseMagnitude * staticFriction;
-                    if (Mathf.Abs(frictionImpulseMag) > maxFriction)
-                        frictionImpulseMag = Mathf.Sign(frictionImpulseMag) * impulseMagnitude * dynamicFriction;
-
-                    Vector3 frictionImpulse = frictionImpulseMag * tangent;
+                    Vector3 frictionImpulse;
+                    if (Mathf.Abs(frictionImpulseMag) < maxFriction)
+                    {
+                        // Static friction
+                        frictionImpulse = frictionImpulseMag * tangent;
+                    }
+                    else
+                    {
+                        // Dynamic friction
+                        frictionImpulse = -impulseMagnitude * dynamicFriction * tangent;
+                    }
 
                     body1.AddImpulse(-frictionImpulse);
                     body2.AddImpulse(frictionImpulse);
-                    
                 }
             }
             
             // Positional correction
             float penetration = Mathf.Max(pair.penetration - penetrationAllowance, 0f);
-            Vector3 correction = (penetration / totalInvMass) * penetrationPercentage * normal;
-            if (body1.Type == CustomRigidbody.BodyType.Dynamic)
-                body1.MoveCenter(-correction * invMass1);
-            if (body2.Type == CustomRigidbody.BodyType.Dynamic)
-                body2.MoveCenter(correction * invMass2);
+            if (penetration > 0f)
+            {
+                Vector3 correction = (penetration / totalInvMass) * penetrationPercentage * normal;
+                if (body1.Type == CustomRigidbody.BodyType.Dynamic)
+                    body1.MoveCenter(-correction * invMass1);
+                if (body2.Type == CustomRigidbody.BodyType.Dynamic)
+                    body2.MoveCenter(correction * invMass2);
+            }
         }
     }
 
@@ -460,7 +477,7 @@ public class PhysicsManager : MonoBehaviour
         }
     }
 
-    void Update()
+    void FixedUpdate()
     {
         //for (int i = 0; i < colliders.Count; i++)
         //{
