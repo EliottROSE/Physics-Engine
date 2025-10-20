@@ -60,170 +60,7 @@ public class PhysicsManager : MonoBehaviour
 
     #endregion
 
-    struct Edge
-    {
-        public Vector3 a, b;
-
-        public Edge(Vector3 a, Vector3 b)
-        {
-            this.a = a;
-            this.b = b;
-        }
-    }
-
-    public class Triangle
-    {
-        public Vector3 a, b, c;
-        private Vector3 normal;
-        private bool isNormalComputed = false;
-
-        public Triangle(Vector3 _a, Vector3 _b, Vector3 _c) { Set(_a, _b, _c); }
-        public void Set(Vector3 _a, Vector3 _b, Vector3 _c)
-        {
-            a = _a; b = _b; c = _c; isNormalComputed = false;
-        }
-
-        public Vector3 GetNormal()
-        {
-            if (isNormalComputed) return normal;
-            normal = Vector3.Cross(b - a, c - a);
-            if (normal.sqrMagnitude <= 1e-12f) normal = Vector3.up;
-            normal.Normalize();
-
-            // Oriente la normale pour avoir Dot(normal, a) >= 0 (vers l'extérieur de l'origine)
-            if (Vector3.Dot(normal, a) < 0f) normal = -normal;
-
-            isNormalComputed = true;
-            return normal;
-        }
-
-        public static List<Triangle> BuildGJKTetrahedron(List<Vector3> simplex)
-        {
-            var faces = new List<Triangle>(4);
-            if (simplex == null || simplex.Count != 4) return faces;
-
-            faces.Add(new Triangle(simplex[3], simplex[1], simplex[0]));
-            faces.Add(new Triangle(simplex[1], simplex[2], simplex[0]));
-            faces.Add(new Triangle(simplex[3], simplex[2], simplex[1]));
-            faces.Add(new Triangle(simplex[2], simplex[3], simplex[0]));
-            return faces;
-        }
-
-        public static void ReBuildPolytop(ref List<Triangle> polytope, Vector3 newPoint)
-        {
-            // Tolérance de quantification pour agréger les arêtes
-            const float eps = 1e-4f;
-
-            // 1) Collecte des faces visibles
-            List<int> visible = new List<int>();
-            for (int i = 0; i < polytope.Count; i++)
-            {
-                Triangle f = polytope[i];
-                Vector3 n = f.GetNormal();
-                if (Vector3.Dot(n, newPoint - f.a) > eps) visible.Add(i);
-            }
-
-            // 2) Comptage d'arêtes (non orientées) via quantification
-            Vector3Int Q(Vector3 p) => new Vector3Int(
-                Mathf.RoundToInt(p.x / eps),
-                Mathf.RoundToInt(p.y / eps),
-                Mathf.RoundToInt(p.z / eps)
-            );
-
-            (Vector3Int, Vector3Int) KeyFor(Vector3 p1, Vector3 p2)
-            {
-                var a = Q(p1); var b = Q(p2);
-                // ordre lexicographique pour une arête non orientée stable
-                if (a.x != b.x ? a.x < b.x : (a.y != b.y ? a.y < b.y : a.z <= b.z)) return (a, b);
-                return (b, a);
-            }
-
-            var counts = new Dictionary<(Vector3Int, Vector3Int), int>();
-            var rawEdge = new Dictionary<(Vector3Int, Vector3Int), (Vector3 A, Vector3 B)>();
-
-            void AddEdge(Vector3 p1, Vector3 p2)
-            {
-                var key = KeyFor(p1, p2);
-                if (!counts.ContainsKey(key))
-                {
-                    counts[key] = 1;
-                    rawEdge[key] = (p1, p2);
-                }
-                else counts[key]++;
-            }
-
-            foreach (int idx in visible)
-            {
-                Triangle f = polytope[idx];
-                AddEdge(f.a, f.b);
-                AddEdge(f.b, f.c);
-                AddEdge(f.c, f.a);
-            }
-
-            // 3) Retirer les faces visibles (ordre décroissant)
-            foreach (int idx in visible.Distinct().OrderByDescending(i => i))
-            {
-                if (idx >= 0 && idx < polytope.Count) polytope.RemoveAt(idx);
-            }
-
-            // 4) Arêtes d'horizon = arêtes comptées une seule fois
-            foreach (var kv in counts)
-            {
-                if (kv.Value != 1) continue;
-                var (A, B) = rawEdge[kv.Key];
-
-                // Face nouvelle depuis l'horizon vers newPoint
-                // Orientation: s'assurer que la normale pointe "vers l'extérieur" (away from origin)
-                Triangle nf = new Triangle(B, A, newPoint);
-                Vector3 n = Vector3.Cross(nf.b - nf.a, nf.c - nf.a).normalized;
-
-                // Si la normale pointe vers l'origine (Dot(n, newPoint) < 0), inverser
-                if (Vector3.Dot(n, newPoint) < 0f)
-                    nf.Set(A, B, newPoint);
-
-                polytope.Add(nf);
-            }
-        }
-
-        public static bool SamePoint(Vector3 p1, Vector3 p2)
-        {
-            const float eps = 1e-6f;
-            return (p1 - p2).sqrMagnitude < (eps * eps);
-        }
-    }
-
-    private static int GetClosestFace(List<Triangle> faces)
-    {
-        int closest = 0;
-        float minDistance = float.MaxValue;
-
-        for (int i = 0; i < faces.Count; i++)
-        {
-            Triangle face = faces[i];
-            Vector3 n = face.GetNormal();
-
-            float distance = Vector3.Dot(n, face.a);
-
-            if (distance < minDistance)
-            {
-                minDistance = distance;
-                closest = i;
-            }
-        }
-
-        return closest;
-    }
-
-    public struct CollisionPair
-    {
-        public CustomRigidbody body1;
-        public CustomRigidbody body2;
-        
-        public Vector3 point; // Point of collision
-        public Vector3 normal; // normal of collision point
-        public float penetration; // how far the rigidbodies enter in collision
-    }
-
+    #region Properties
     // Existing collider in the scene
     private List<CustomCollider> colliders = new List<CustomCollider>();
 
@@ -241,72 +78,8 @@ public class PhysicsManager : MonoBehaviour
 
     // Index of the root 
     private int root;
-
-    // Collider1, Collider2, faces = final samplex of GJK, maxIterations = maximum number of iterations
-    public static CollisionPair ExpendingPolytopeAlgorithm(CustomCollider collider1, CustomCollider collider2,
-        List<Vector3> gjkSimplex, int maxIterations)
-    {
-        // Value use to check value close to zero with float
-        float eps = 1e-6f;
-
-        // Tolérance relative basée sur l'échelle des objets
-        float scale = Mathf.Max(collider1.transform.lossyScale.magnitude, collider2.transform.lossyScale.magnitude);
-        float tolerance = 1e-4f * Mathf.Max(1f, scale);
-
-        List<Triangle> epaSimplex = Triangle.BuildGJKTetrahedron(gjkSimplex);
-
-        for (int i = 0; i < maxIterations; i++)
-        {
-            int closestFaceIndex = GetClosestFace(epaSimplex);
-            Triangle closestFace = epaSimplex[closestFaceIndex];
-            Vector3 normal = closestFace.GetNormal();
-
-            // Distance du plan à l'origine (normal déjà orientée par GetNormal)
-            float dist = Vector3.Dot(normal, closestFace.a);
-
-            // Nouveau point de support dans la direction de la normale
-            Vector3 supportPoint = GetSupport(collider1, collider2, normal);
-            float supportDist = Vector3.Dot(normal, supportPoint);
-
-            // Convergence si l'amélioration est <= tolérance
-            if ((supportDist - dist) <= tolerance)
-            {
-                CollisionPair pair = new CollisionPair();
-                pair.normal = normal;
-                pair.penetration = Mathf.Max(dist, 0f);
-
-                // Point de contact approximatif (médiane des points de support opposés)
-                Vector3 s1 = collider1.GetSupport(-normal);
-                Vector3 s2 = collider2.GetSupport(normal);
-                pair.point = (s1 + s2) * 0.5f;
-
-                if (!collider1.gameObject.TryGetComponent(out pair.body1))
-                    pair.body1 = collider1.gameObject.AddComponent<CustomRigidbody>();
-                if (!collider2.gameObject.TryGetComponent(out pair.body2))
-                    pair.body2 = collider2.gameObject.AddComponent<CustomRigidbody>();
-
-                return pair;
-            }
-
-            // Étendre le polytop avec un horizon robuste
-            Triangle.ReBuildPolytop(ref epaSimplex, supportPoint);
-        }
-
-        Debug.Log("Failed Samplex debug");
-        for (int i = 0; i < epaSimplex.Count; i++)
-        {
-            Debug.DrawLine(epaSimplex[i].a, epaSimplex[i].b, Color.blue);
-            Debug.DrawLine(epaSimplex[i].b, epaSimplex[i].c, Color.blue);
-            Debug.DrawLine(epaSimplex[i].c, epaSimplex[i].a, Color.blue);
-            Vector3 center = (epaSimplex[i].a + epaSimplex[i].b + epaSimplex[i].c) / 3f;
-            Debug.DrawLine(center, center + epaSimplex[i].GetNormal() * 0.5f, Color.green);
-        }
-
-        //Debug.Log(epaSimplex.Count);
-        return new CollisionPair { };
-    }
-    
-    private void ResolveCollisions(List<CollisionPair> collisionPairs)
+    #endregion
+    private void ResolveCollisions(List<EPA.CollisionPair> collisionPairs)
     {
         if (collisionPairs.Count == 0)
             return;
@@ -315,7 +88,7 @@ public class PhysicsManager : MonoBehaviour
         
         Debug.Log($"Pairs to resolve: {collisionPairs.Count}");
         
-        foreach (CollisionPair pair in collisionPairs)
+        foreach (EPA.CollisionPair pair in collisionPairs)
         {
             CustomRigidbody body1 = pair.body1;
             CustomRigidbody body2 = pair.body2;
@@ -439,24 +212,18 @@ public class PhysicsManager : MonoBehaviour
 
     void FixedUpdate()
     {
-        //for (int i = 0; i < colliders.Count; i++)
-        //{
-        //    //colliders[i].UpdateCollider(); 
-        //    collidersBounds[i] = colliders[i].GetAABB();
-        //}
-
+        // TODO : Change to update existing tree instead of rebuild every frame
         boundsTree.Clear();
         bounds.Clear();
         root = 0;
         availableBoundsTreeIndexes.Clear();
         availableBoundsIndexes.Clear();
         BuildAABBTree();
-        List<CollisionPair> pairs = DetectCollisions();
-
+        
+        List<EPA.CollisionPair> pairs = DetectCollisions();
         ResolveCollisions(pairs);
     }
 
-    // AABB Tree functions
 
     #region Tree
 
@@ -650,9 +417,8 @@ public class PhysicsManager : MonoBehaviour
 
     #endregion
 
-    // AABB Tree helper functions, add to list, get index, etc...
 
-    #region TreeHelperFunctions
+    #region Tree Helper Methods
 
     public int GetBoundIndexFromTree(int treeIndex)
     {
@@ -758,7 +524,7 @@ public class PhysicsManager : MonoBehaviour
         return false;
     }
 
-    private static Vector3 GetSupport(CustomCollider collider1, CustomCollider collider2, Vector3 direction)
+    public static Vector3 GetSupport(CustomCollider collider1, CustomCollider collider2, Vector3 direction)
     {
         return collider1.GetSupport(direction) - collider2.GetSupport(-direction);
     }
@@ -878,48 +644,43 @@ public class PhysicsManager : MonoBehaviour
         return false;
     }
 
-    public List<CollisionPair> DetectCollisions()
+    public List<EPA.CollisionPair> DetectCollisions()
     {
         List<(int, int)> broadPhasePairs = new List<(int, int)>();
 
         if (root == -1 || boundsTree.Count == 0)
-            return new List<CollisionPair>();
+            return new List<EPA.CollisionPair>();
 
         DetectAllCollisionsFromNode(root, broadPhasePairs);
-        List<CollisionPair> collisionPairs = new List<CollisionPair>();
+        List<EPA.CollisionPair> collisionPairs = new List<EPA.CollisionPair>();
 
         foreach ((int a, int b) in broadPhasePairs)
         {
-            //if (boundsTree[a].isLeaf && boundsTree[b].isLeaf)
-            //    Debug.Log($"AABB {a} collide with AABB {b}");
-
             CustomCollider colliderA = colliders[boundsTree[a].ColliderIndex];
             CustomCollider colliderB = colliders[boundsTree[b].ColliderIndex];
 
             List<Vector3> outGJKPoints = new List<Vector3>();
             if (CheckGJKCollision(colliderA, colliderB, 64, ref outGJKPoints))
             {
-                CollisionPair pair = ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);
+                EPA.CollisionPair pair = EPA.ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);
                 if (pair.point != Vector3.zero && pair.normal != Vector3.zero && pair.penetration != 0f)
                 {
                     collisionPairs.Add(pair);
                     
-                    Debug.Log("Hit point : " + pair.point);
-                    Debug.Log("Hit normal : " + pair.normal);
-                    Debug.Log("Hit penetration : " + pair.penetration);
+                    //Debug.Log("Hit point : " + pair.point);
+                    //Debug.Log("Hit normal : " + pair.normal);
+                    //Debug.Log("Hit penetration : " + pair.penetration);
                     
-                    Debug.DrawLine(pair.point, pair.point + pair.normal * pair.penetration,  Color.blue, 10f);
-                    float size = 0.05f; 
-                    Vector3 p = pair.point;
-                    Debug.DrawLine(p - Vector3.right * size, p + Vector3.right * size, Color.red, 10f);
-                    Debug.DrawLine(p - Vector3.up * size, p + Vector3.up * size, Color.green, 10f);
-                    Debug.DrawLine(p - Vector3.forward * size, p + Vector3.forward * size, Color.yellow, 10f);
-                    continue;
+                    //Debug.DrawLine(pair.point, pair.point + pair.normal * pair.penetration,  Color.blue, 10f);
+                    //float size = 0.05f; 
+                    //Vector3 p = pair.point;
+                    //Debug.DrawLine(p - Vector3.right * size, p + Vector3.right * size, Color.red, 10f);
+                    //Debug.DrawLine(p - Vector3.up * size, p + Vector3.up * size, Color.green, 10f);
+                    //Debug.DrawLine(p - Vector3.forward * size, p + Vector3.forward * size, Color.yellow, 10f);
+                    //continue;
                 }
-                Debug.Log("EPA return value failed");
             }
         }
-
         return collisionPairs;
     }
 
@@ -989,32 +750,5 @@ public class PhysicsManager : MonoBehaviour
         DetectCollisionPairsRecursive(node1.rightIndex, node2.leftIndex, outPairs);
         DetectCollisionPairsRecursive(node1.rightIndex, node2.rightIndex, outPairs);
     }
-
-    // Basic half work 
-    public void DetectCollisionPair(int nodeIndex, List<(int, int)> outPairs)
-    {
-        Node node = boundsTree[nodeIndex];
-
-        if (node.leftIndex == -1 && node.rightIndex == -1)
-            return;
-
-        Node leftNode = boundsTree[node.leftIndex];
-        Node rightNode = boundsTree[node.rightIndex];
-
-        if ((leftNode.isLeaf && rightNode.isLeaf) &&
-            AABB.CheckAABBCollision(bounds[leftNode.AABBIndex], bounds[rightNode.AABBIndex]))
-        {
-            outPairs.Add((node.leftIndex, node.rightIndex));
-        }
-        else if (!leftNode.isLeaf)
-        {
-            DetectCollisionPair(node.leftIndex, outPairs);
-        }
-        else if (!rightNode.isLeaf)
-        {
-            DetectCollisionPair(node.rightIndex, outPairs);
-        }
-    }
-
     #endregion
 }
