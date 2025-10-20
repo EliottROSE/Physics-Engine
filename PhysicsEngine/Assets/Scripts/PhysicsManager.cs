@@ -77,191 +77,111 @@ public class PhysicsManager : MonoBehaviour
         private Vector3 normal;
         private bool isNormalComputed = false;
 
-        public Triangle(Vector3 _a, Vector3 _b, Vector3 _c)
-        {
-            Set(_a, _b, _c);
-        }
-
+        public Triangle(Vector3 _a, Vector3 _b, Vector3 _c) { Set(_a, _b, _c); }
         public void Set(Vector3 _a, Vector3 _b, Vector3 _c)
         {
-            this.a = _a;
-            this.b = _b;
-            this.c = _c;
-
-            isNormalComputed = false;
+            a = _a; b = _b; c = _c; isNormalComputed = false;
         }
 
         public Vector3 GetNormal()
         {
-            if (isNormalComputed)
-                return normal;
-
+            if (isNormalComputed) return normal;
             normal = Vector3.Cross(b - a, c - a);
-            if (normal.sqrMagnitude <= 1e-12f)
-            {
-                normal = Vector3.up;
-            }
-            normal = normal.normalized;
+            if (normal.sqrMagnitude <= 1e-12f) normal = Vector3.up;
+            normal.Normalize();
 
-            if (Vector3.Dot(normal, a) < 0f)
-                normal = -normal;
+            // Oriente la normale pour avoir Dot(normal, a) >= 0 (vers l'extérieur de l'origine)
+            if (Vector3.Dot(normal, a) < 0f) normal = -normal;
 
             isNormalComputed = true;
             return normal;
         }
 
-        public bool HasEdge(Vector3 p1, Vector3 p2)
-        {
-            return (AlmostEqualVector3(a, p1) && AlmostEqualVector3(b, p2)) ||
-                   (AlmostEqualVector3(b, p1) && AlmostEqualVector3(c, p2)) ||
-                   (AlmostEqualVector3(c, p1) && AlmostEqualVector3(a, p2)) ||
-                   (AlmostEqualVector3(a, p2) && AlmostEqualVector3(b, p1)) ||
-                   (AlmostEqualVector3(b, p2) && AlmostEqualVector3(c, p1)) ||
-                   (AlmostEqualVector3(c, p2) && AlmostEqualVector3(a, p1));
-        }
-
-        private bool AlmostEqualVector3(Vector3 v1, Vector3 v2)
-        {
-            const float eps = 1e-6f;
-            return (v1 - v2).sqrMagnitude <= (eps * eps);
-        }
-
-
         public static List<Triangle> BuildGJKTetrahedron(List<Vector3> simplex)
         {
-            List<Triangle> faces = new List<Triangle>(4);
+            var faces = new List<Triangle>(4);
+            if (simplex == null || simplex.Count != 4) return faces;
 
-            if (simplex == null || simplex.Count != 4)
-            {
-                Debug.LogError("Cannot build tetrahedron: simplex must contain exactly 4 points");
-                return faces;
-            }
-
-            // Construire faces; GetNormal() s'assurera de l'orientation
             faces.Add(new Triangle(simplex[3], simplex[1], simplex[0]));
             faces.Add(new Triangle(simplex[1], simplex[2], simplex[0]));
             faces.Add(new Triangle(simplex[3], simplex[2], simplex[1]));
             faces.Add(new Triangle(simplex[2], simplex[3], simplex[0]));
-
             return faces;
         }
 
-        //public static void ReBuildPolytop(ref List<Triangle> polytope, Vector3 newPoint)
-        //{
-        //    const float eps = 1e-6f;
-        //
-        //    List<int> visibleIndices = new List<int>();
-        //    for (int i = 0; i < polytope.Count; i++)
-        //    {
-        //        Triangle face = polytope[i];
-        //        Vector3 normal = face.GetNormal();
-        //        if (Vector3.Dot(normal, newPoint - face.a) > eps)
-        //            visibleIndices.Add(i);
-        //    }
-        //    
-        //
-        //    List<Edge> horizon = new List<Edge>();
-        //    foreach (int vi in visibleIndices)
-        //    {
-        //        Triangle face = polytope[vi];
-        //        Edge[] edges = { new Edge(face.a, face.b), new Edge(face.b, face.c), new Edge(face.c, face.a) };
-        //
-        //        foreach (var e in edges)
-        //        {
-        //            Edge reverseEdge = new Edge(e.b, e.a);
-        //            if (horizon.Contains(reverseEdge))
-        //            {
-        //                //remove the reverse edge from the horizon list
-        //                horizon.Remove(reverseEdge);
-        //            }
-        //            else
-        //            {
-        //                //add the edge to the horizon list
-        //                horizon.Add(reverseEdge);
-        //            }
-        //        }
-        //    }
-        //
-        //    //visibleIndices.Sort();
-        //    //for (int i = 0; i < visibleIndices.Count; i++)
-        //    //    polytope.RemoveAt(visibleIndices[i]);
-        //
-        //    
-        //    var uniqueVisible = visibleIndices.Distinct().OrderByDescending(i => i).ToList();
-        //    foreach (int idx in uniqueVisible)
-        //    {
-        //        if (idx >= 0 && idx < polytope.Count)
-        //            polytope.RemoveAt(idx);
-        //    }
-        //    
-        //    foreach (var e in horizon)
-        //    {
-        //        Triangle newFace = new Triangle(e.b, e.a, newPoint);
-        //        //if (Vector3.Dot(newFace.GetNormal(), newFace.a) < 0f)
-        //        //    newFace.Set(e.b, e.a, newPoint);
-        //        polytope.Add(newFace);
-        //    }
-        //}
         public static void ReBuildPolytop(ref List<Triangle> polytope, Vector3 newPoint)
         {
-            const float eps = 1e-6f;
+            // Tolérance de quantification pour agréger les arêtes
+            const float eps = 1e-4f;
 
-            List<int> visibleIndices = new List<int>();
+            // 1) Collecte des faces visibles
+            List<int> visible = new List<int>();
             for (int i = 0; i < polytope.Count; i++)
             {
-                Triangle face = polytope[i];
-                Vector3 normal = face.GetNormal();
-                if (Vector3.Dot(normal, newPoint - face.a) > eps)
-                    visibleIndices.Add(i);
+                Triangle f = polytope[i];
+                Vector3 n = f.GetNormal();
+                if (Vector3.Dot(n, newPoint - f.a) > eps) visible.Add(i);
             }
 
-            // Build horizon from visible faces (before removing any face)
-            List<Edge> horizon = new List<Edge>();
-            foreach (int vi in visibleIndices)
-            {
-                Triangle face = polytope[vi];
-                Edge[] edges = { new Edge(face.a, face.b), new Edge(face.b, face.c), new Edge(face.c, face.a) };
+            // 2) Comptage d'arêtes (non orientées) via quantification
+            Vector3Int Q(Vector3 p) => new Vector3Int(
+                Mathf.RoundToInt(p.x / eps),
+                Mathf.RoundToInt(p.y / eps),
+                Mathf.RoundToInt(p.z / eps)
+            );
 
-                foreach (var e in edges)
+            (Vector3Int, Vector3Int) KeyFor(Vector3 p1, Vector3 p2)
+            {
+                var a = Q(p1); var b = Q(p2);
+                // ordre lexicographique pour une arête non orientée stable
+                if (a.x != b.x ? a.x < b.x : (a.y != b.y ? a.y < b.y : a.z <= b.z)) return (a, b);
+                return (b, a);
+            }
+
+            var counts = new Dictionary<(Vector3Int, Vector3Int), int>();
+            var rawEdge = new Dictionary<(Vector3Int, Vector3Int), (Vector3 A, Vector3 B)>();
+
+            void AddEdge(Vector3 p1, Vector3 p2)
+            {
+                var key = KeyFor(p1, p2);
+                if (!counts.ContainsKey(key))
                 {
-                    Edge reverseEdge = new Edge(e.b, e.a);
-                    if (horizon.Contains(reverseEdge))
-                    {
-                        // remove the reverse edge - it is internal
-                        horizon.Remove(reverseEdge);
-                    }
-                    else
-                    {
-                        // add the edge as candidate horizon edge (note: add e, pas reverseEdge)
-                        horizon.Add(e);
-                    }
+                    counts[key] = 1;
+                    rawEdge[key] = (p1, p2);
                 }
+                else counts[key]++;
             }
 
-            // Remove visible faces: must remove in descending order to avoid shifting indices
-            var uniqueVisible = visibleIndices.Distinct().OrderByDescending(i => i).ToList();
-            foreach (int idx in uniqueVisible)
+            foreach (int idx in visible)
             {
-                if (idx >= 0 && idx < polytope.Count)
-                    polytope.RemoveAt(idx);
+                Triangle f = polytope[idx];
+                AddEdge(f.a, f.b);
+                AddEdge(f.b, f.c);
+                AddEdge(f.c, f.a);
             }
 
-            // For each horizon edge, create a new face connecting it to the new point
-            foreach (var e in horizon)
+            // 3) Retirer les faces visibles (ordre décroissant)
+            foreach (int idx in visible.Distinct().OrderByDescending(i => i))
             {
-                // use e.a, e.b so orientation is consistent with horizon
-                Triangle newFace = new Triangle(e.b, e.a, newPoint);
+                if (idx >= 0 && idx < polytope.Count) polytope.RemoveAt(idx);
+            }
 
-                // Ensure new face normal does not point toward the newPoint (flip if necessary).
-                // This reduces inconsistent orientation that peut mener aux faces croisées.
-                Vector3 raw = Vector3.Cross(e.b - e.a, newPoint - e.a);
-                if (Vector3.Dot(raw, newPoint - e.a) > 0f)
-                {
-                    // flip orientation
-                    newFace.Set(e.b, e.a, newPoint);
-                }
+            // 4) Arêtes d'horizon = arêtes comptées une seule fois
+            foreach (var kv in counts)
+            {
+                if (kv.Value != 1) continue;
+                var (A, B) = rawEdge[kv.Key];
 
-                polytope.Add(newFace);
+                // Face nouvelle depuis l'horizon vers newPoint
+                // Orientation: s'assurer que la normale pointe "vers l'extérieur" (away from origin)
+                Triangle nf = new Triangle(B, A, newPoint);
+                Vector3 n = Vector3.Cross(nf.b - nf.a, nf.c - nf.a).normalized;
+
+                // Si la normale pointe vers l'origine (Dot(n, newPoint) < 0), inverser
+                if (Vector3.Dot(n, newPoint) < 0f)
+                    nf.Set(A, B, newPoint);
+
+                polytope.Add(nf);
             }
         }
 
@@ -329,70 +249,46 @@ public class PhysicsManager : MonoBehaviour
         // Value use to check value close to zero with float
         float eps = 1e-6f;
 
+        // Tolérance relative basée sur l'échelle des objets
+        float scale = Mathf.Max(collider1.transform.lossyScale.magnitude, collider2.transform.lossyScale.magnitude);
+        float tolerance = 1e-4f * Mathf.Max(1f, scale);
+
         List<Triangle> epaSimplex = Triangle.BuildGJKTetrahedron(gjkSimplex);
 
         for (int i = 0; i < maxIterations; i++)
         {
-            // get closest face to the origin
             int closestFaceIndex = GetClosestFace(epaSimplex);
             Triangle closestFace = epaSimplex[closestFaceIndex];
-
             Vector3 normal = closestFace.GetNormal();
-            
-            
-            // Get a new support point
+
+            // Distance du plan à l'origine (normal déjà orientée par GetNormal)
+            float dist = Vector3.Dot(normal, closestFace.a);
+
+            // Nouveau point de support dans la direction de la normale
             Vector3 supportPoint = GetSupport(collider1, collider2, normal);
+            float supportDist = Vector3.Dot(normal, supportPoint);
 
-            // Find the distance to the origin
-            float dist = Vector3.Dot(closestFace.GetNormal(), closestFace.a);
-            // Find the distance to the origin with this new support point
-            float supportDist = Vector3.Dot(closestFace.GetNormal(), supportPoint);
-
-            if (dist < eps)
-                dist *= -1;
-
-            // If distance between new distance from support point and the base distance, the new point is in resonnable distance from the plan
-            if (supportDist - dist < 1e-4f)
+            // Convergence si l'amélioration est <= tolérance
+            if ((supportDist - dist) <= tolerance)
             {
                 CollisionPair pair = new CollisionPair();
                 pair.normal = normal;
-                pair.penetration = dist;
+                pair.penetration = Mathf.Max(dist, 0f);
+
+                // Point de contact approximatif (médiane des points de support opposés)
                 Vector3 s1 = collider1.GetSupport(-normal);
                 Vector3 s2 = collider2.GetSupport(normal);
                 pair.point = (s1 + s2) * 0.5f;
-                CustomRigidbody body1;
-                CustomRigidbody body2;
-                if (!collider1.gameObject.TryGetComponent<CustomRigidbody>(out body1))
-                {
-                    body1 = collider1.gameObject.AddComponent<CustomRigidbody>();
-                }
-                
-                if (!collider2.gameObject.TryGetComponent<CustomRigidbody>(out body2))
-                {
-                    body2 = collider2.gameObject.AddComponent<CustomRigidbody>();
-                }
 
-                pair.body1 = body1;
-                pair.body2 = body2;
-                
-                for (int j = 0; j < epaSimplex.Count; j++)
-                {
-                    Debug.DrawLine(epaSimplex[j].a, epaSimplex[j].b, Color.blue);
-                    Debug.DrawLine(epaSimplex[j].b, epaSimplex[j].c, Color.blue);
-                    Debug.DrawLine(epaSimplex[j].c, epaSimplex[j].a, Color.blue);
-                    Vector3 center = (epaSimplex[j].a + epaSimplex[j].b + epaSimplex[j].c) / 3f;
+                if (!collider1.gameObject.TryGetComponent(out pair.body1))
+                    pair.body1 = collider1.gameObject.AddComponent<CustomRigidbody>();
+                if (!collider2.gameObject.TryGetComponent(out pair.body2))
+                    pair.body2 = collider2.gameObject.AddComponent<CustomRigidbody>();
 
-                    if (epaSimplex[j].GetNormal() == Vector3.zero)
-                        Debug.Log("Error null nomral");
-                    Debug.DrawLine(center, center + epaSimplex[j].GetNormal() * 0.5f, Color.green);
-                    
-                    
-                }
-                
                 return pair;
             }
 
-            // Add new support point to polygon
+            // Étendre le polytop avec un horizon robuste
             Triangle.ReBuildPolytop(ref epaSimplex, supportPoint);
         }
 
@@ -1003,7 +899,7 @@ public class PhysicsManager : MonoBehaviour
             List<Vector3> outGJKPoints = new List<Vector3>();
             if (CheckGJKCollision(colliderA, colliderB, 64, ref outGJKPoints))
             {
-                CollisionPair pair = ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 10);
+                CollisionPair pair = ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);
                 if (pair.point != Vector3.zero && pair.normal != Vector3.zero && pair.penetration != 0f)
                 {
                     collisionPairs.Add(pair);
@@ -1122,4 +1018,3 @@ public class PhysicsManager : MonoBehaviour
 
     #endregion
 }
-

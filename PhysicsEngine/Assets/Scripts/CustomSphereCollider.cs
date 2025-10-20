@@ -18,14 +18,14 @@ public class CustomSphereCollider : CustomCollider
     protected override void Update()
     {
         base.Update();
-        radius = transform.localScale.x;
+        radius = transform.localScale.x * 0.5f;
         
-        aabb.SetAABB(transform.position, Vector3.one * radius);
+        aabb.SetAABB(transform.position, Vector3.one * (radius * 2f));
     }
 
     public override void InitAABB()
     {
-        aabb.SetAABB(transform.position, Vector3.one * radius);
+        aabb.SetAABB(transform.position, Vector3.one * (radius * 2f));
     }
 
     /*public override Vector3 GetSupport(Vector3 direction)
