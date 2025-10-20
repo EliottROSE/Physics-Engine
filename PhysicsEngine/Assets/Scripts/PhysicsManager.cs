@@ -138,15 +138,71 @@ public class PhysicsManager : MonoBehaviour
             }
 
             // Construire faces; GetNormal() s'assurera de l'orientation
-            faces.Add(new Triangle(simplex[0], simplex[1], simplex[2]));
-            faces.Add(new Triangle(simplex[1], simplex[2], simplex[3]));
+            faces.Add(new Triangle(simplex[3], simplex[1], simplex[0]));
+            faces.Add(new Triangle(simplex[1], simplex[2], simplex[0]));
+            faces.Add(new Triangle(simplex[3], simplex[2], simplex[1]));
             faces.Add(new Triangle(simplex[2], simplex[3], simplex[0]));
-            faces.Add(new Triangle(simplex[3], simplex[0], simplex[1]));
 
             return faces;
         }
 
-        public static void ReBuildPolytop(ref List<Triangle> polytope, int closestFaceIndex, Vector3 newPoint)
+        //public static void ReBuildPolytop(ref List<Triangle> polytope, Vector3 newPoint)
+        //{
+        //    const float eps = 1e-6f;
+        //
+        //    List<int> visibleIndices = new List<int>();
+        //    for (int i = 0; i < polytope.Count; i++)
+        //    {
+        //        Triangle face = polytope[i];
+        //        Vector3 normal = face.GetNormal();
+        //        if (Vector3.Dot(normal, newPoint - face.a) > eps)
+        //            visibleIndices.Add(i);
+        //    }
+        //    
+        //
+        //    List<Edge> horizon = new List<Edge>();
+        //    foreach (int vi in visibleIndices)
+        //    {
+        //        Triangle face = polytope[vi];
+        //        Edge[] edges = { new Edge(face.a, face.b), new Edge(face.b, face.c), new Edge(face.c, face.a) };
+        //
+        //        foreach (var e in edges)
+        //        {
+        //            Edge reverseEdge = new Edge(e.b, e.a);
+        //            if (horizon.Contains(reverseEdge))
+        //            {
+        //                //remove the reverse edge from the horizon list
+        //                horizon.Remove(reverseEdge);
+        //            }
+        //            else
+        //            {
+        //                //add the edge to the horizon list
+        //                horizon.Add(reverseEdge);
+        //            }
+        //        }
+        //    }
+        //
+        //    //visibleIndices.Sort();
+        //    //for (int i = 0; i < visibleIndices.Count; i++)
+        //    //    polytope.RemoveAt(visibleIndices[i]);
+        //
+        //    
+        //    var uniqueVisible = visibleIndices.Distinct().OrderByDescending(i => i).ToList();
+        //    foreach (int idx in uniqueVisible)
+        //    {
+        //        if (idx >= 0 && idx < polytope.Count)
+        //            polytope.RemoveAt(idx);
+        //    }
+        //    
+        //    foreach (var e in horizon)
+        //    {
+        //        Triangle newFace = new Triangle(e.b, e.a, newPoint);
+        //        //if (Vector3.Dot(newFace.GetNormal(), newFace.a) < 0f)
+        //        //    newFace.Set(e.b, e.a, newPoint);
+        //        polytope.Add(newFace);
+        //    }
+        //}
+        public static void ReBuildPolytop(ref List<Triangle> polytope, Vector3 newPoint)
         {
             const float eps = 1e-6f;
 
@@ -159,17 +215,7 @@ public class PhysicsManager : MonoBehaviour
                     visibleIndices.Add(i);
             }
 
-            if (visibleIndices.Count == 0)
-            {
-                // subdiviser la face la plus proche
-                Triangle closestFace = polytope[closestFaceIndex];
-                polytope.RemoveAt(closestFaceIndex);
-                polytope.Add(new Triangle(closestFace.a, newPoint, closestFace.b));
-                polytope.Add(new Triangle(closestFace.b, newPoint, closestFace.c));
-                polytope.Add(new Triangle(closestFace.c, newPoint, closestFace.a));
-                return;
-            }
-
+            // Build horizon from visible faces (before removing any face)
             List<Edge> horizon = new List<Edge>();
             foreach (int vi in visibleIndices)
             {
@@ -178,35 +224,47 @@ public class PhysicsManager : MonoBehaviour
 
                 foreach (var e in edges)
                 {
-                    bool foundReverse = false;
-                    for (int j = horizon.Count - 1; j >= 0; j--)
+                    Edge reverseEdge = new Edge(e.b, e.a);
+                    if (horizon.Contains(reverseEdge))
                     {
-                        if (SamePoint(horizon[j].a, e.b) && SamePoint(horizon[j].b, e.a))
-                        {
-                            horizon.RemoveAt(j);
-                            foundReverse = true;
-                            break;
-                        }
+                        // remove the reverse edge - it is internal
+                        horizon.Remove(reverseEdge);
                     }
-
-                    if (!foundReverse)
+                    else
+                    {
+                        // add the edge as candidate horizon edge (note: add e, pas reverseEdge)
                         horizon.Add(e);
+                    }
                 }
             }
 
-            visibleIndices.Sort();
-            for (int i = visibleIndices.Count - 1; i >= 0; i--)
-                polytope.RemoveAt(visibleIndices[i]);
+            // Remove visible faces: must remove in descending order to avoid shifting indices
+            var uniqueVisible = visibleIndices.Distinct().OrderByDescending(i => i).ToList();
+            foreach (int idx in uniqueVisible)
+            {
+                if (idx >= 0 && idx < polytope.Count)
+                    polytope.RemoveAt(idx);
+            }
 
+            // For each horizon edge, create a new face connecting it to the new point
             foreach (var e in horizon)
             {
-                Triangle newFace = new Triangle(e.a, e.b, newPoint);
-                if (Vector3.Dot(newFace.GetNormal(), newFace.a) < 0f)
+                // use e.a, e.b so orientation is consistent with horizon
+                Triangle newFace = new Triangle(e.b, e.a, newPoint);
+
+                // Ensure new face normal does not point toward the newPoint (flip if necessary).
+                // This reduces inconsistent orientation that peut mener aux faces croisées.
+                Vector3 raw = Vector3.Cross(e.b - e.a, newPoint - e.a);
+                if (Vector3.Dot(raw, newPoint - e.a) > 0f)
+                {
+                    // flip orientation
                     newFace.Set(e.b, e.a, newPoint);
+                }
+
                 polytope.Add(newFace);
             }
         }
-        
+
         public static bool SamePoint(Vector3 p1, Vector3 p2)
         {
             const float eps = 1e-6f;
@@ -324,25 +382,31 @@ public class PhysicsManager : MonoBehaviour
                     Debug.DrawLine(epaSimplex[j].c, epaSimplex[j].a, Color.blue);
                     Vector3 center = (epaSimplex[j].a + epaSimplex[j].b + epaSimplex[j].c) / 3f;
 
+                    if (epaSimplex[j].GetNormal() == Vector3.zero)
+                        Debug.Log("Error null nomral");
                     Debug.DrawLine(center, center + epaSimplex[j].GetNormal() * 0.5f, Color.green);
+                    
+                    
                 }
                 
                 return pair;
             }
 
             // Add new support point to polygon
-            Triangle.ReBuildPolytop(ref epaSimplex, closestFaceIndex, supportPoint);
+            Triangle.ReBuildPolytop(ref epaSimplex, supportPoint);
         }
 
-        Debug.Log("EPA Failed");
+        Debug.Log("Failed Samplex debug");
         for (int i = 0; i < epaSimplex.Count; i++)
         {
             Debug.DrawLine(epaSimplex[i].a, epaSimplex[i].b, Color.blue);
             Debug.DrawLine(epaSimplex[i].b, epaSimplex[i].c, Color.blue);
             Debug.DrawLine(epaSimplex[i].c, epaSimplex[i].a, Color.blue);
+            Vector3 center = (epaSimplex[i].a + epaSimplex[i].b + epaSimplex[i].c) / 3f;
+            Debug.DrawLine(center, center + epaSimplex[i].GetNormal() * 0.5f, Color.green);
         }
 
-        Debug.Log(epaSimplex.Count);
+        //Debug.Log(epaSimplex.Count);
         return new CollisionPair { };
     }
     
@@ -939,20 +1003,24 @@ public class PhysicsManager : MonoBehaviour
             List<Vector3> outGJKPoints = new List<Vector3>();
             if (CheckGJKCollision(colliderA, colliderB, 64, ref outGJKPoints))
             {
-                Debug.Log("GJK COllision");
-                CollisionPair pair = ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);
-                collisionPairs.Add(pair);
-                Debug.DrawLine(pair.point, pair.point + pair.normal * pair.penetration,  Color.blue, 10f);
-                // Tracer un petit repère pour le point de contact
-                float size = 0.05f; 
-                Vector3 p = pair.point;
-                Debug.DrawLine(p - Vector3.right * size, p + Vector3.right * size, Color.red, 10f);
-                Debug.DrawLine(p - Vector3.up * size, p + Vector3.up * size, Color.green, 10f);
-                Debug.DrawLine(p - Vector3.forward * size, p + Vector3.forward * size, Color.yellow, 10f);
-                
-                //Debug.Log("Hit point : " + pair.point);
-                //Debug.Log("Hit normal : " + pair.normal);
-                //Debug.Log("Hit penetration : " + pair.penetration);
+                CollisionPair pair = ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 10);
+                if (pair.point != Vector3.zero && pair.normal != Vector3.zero && pair.penetration != 0f)
+                {
+                    collisionPairs.Add(pair);
+                    
+                    Debug.Log("Hit point : " + pair.point);
+                    Debug.Log("Hit normal : " + pair.normal);
+                    Debug.Log("Hit penetration : " + pair.penetration);
+                    
+                    Debug.DrawLine(pair.point, pair.point + pair.normal * pair.penetration,  Color.blue, 10f);
+                    float size = 0.05f; 
+                    Vector3 p = pair.point;
+                    Debug.DrawLine(p - Vector3.right * size, p + Vector3.right * size, Color.red, 10f);
+                    Debug.DrawLine(p - Vector3.up * size, p + Vector3.up * size, Color.green, 10f);
+                    Debug.DrawLine(p - Vector3.forward * size, p + Vector3.forward * size, Color.yellow, 10f);
+                    continue;
+                }
+                Debug.Log("EPA return value failed");
             }
         }
 
