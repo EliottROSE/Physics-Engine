@@ -829,6 +829,11 @@ public class PhysicsManager : MonoBehaviour
             {
                 Debug.Log("GJK COllision");
                 CollisionPair pair = ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);
+                if (pair.point == Vector3.zero && pair.normal == Vector3.zero && pair.penetration == 0f)
+                {
+                    Debug.Log("EPA FAILED");
+                    continue;
+                }
                 collisionPairs.Add(pair);
                 Debug.DrawLine(pair.point, pair.point + pair.normal * pair.penetration,  Color.blue, 10f);
                 // Tracer un petit repère pour le point de contact
