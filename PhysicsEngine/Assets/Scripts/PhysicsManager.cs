@@ -10,10 +10,6 @@ using UnityEngine.Rendering.Universal;
 
 public class PhysicsManager : MonoBehaviour
 {
-    [SerializeField] private float penetrationPercentage = 0.4f;
-    [SerializeField] private float penetrationAllowance = 0.1f;
-    [SerializeField] private float bounceThreshold = 0.5f;
-    
     #region Singleton
 
     static PhysicsManager instance = null;
@@ -61,6 +57,11 @@ public class PhysicsManager : MonoBehaviour
     #endregion
 
     #region Properties
+    // Collision resolution properties
+    [SerializeField] private float penetrationPercentage = 0.4f;
+    [SerializeField] private float penetrationAllowance = 0.1f;
+    [SerializeField] private float bounceThreshold = 0.5f;
+
     // Existing collider in the scene
     private List<CustomCollider> colliders = new List<CustomCollider>();
 
@@ -79,103 +80,8 @@ public class PhysicsManager : MonoBehaviour
     // Index of the root 
     private int root;
     #endregion
-    private void ResolveCollisions(List<EPA.CollisionPair> collisionPairs)
-    {
-        if (collisionPairs.Count == 0)
-            return;
-        
-        const float eps = 1e-5f;
-        
-        Debug.Log($"Pairs to resolve: {collisionPairs.Count}");
-        
-        foreach (EPA.CollisionPair pair in collisionPairs)
-        {
-            CustomRigidbody body1 = pair.body1;
-            CustomRigidbody body2 = pair.body2;
-            
-            if (!body1 || !body2)
-                continue;
 
-            if (body1.Type != CustomRigidbody.BodyType.Dynamic && body2.Type != CustomRigidbody.BodyType.Dynamic)
-                continue;
-            
-            Vector3 normal = pair.normal.sqrMagnitude > eps ? pair.normal.normalized : Vector3.up;
-            
-            Vector3 ab  = body2.Center - body1.Center;
-            if (Vector3.Dot(ab, normal) <= 0f)
-                normal = -normal;
-            
-            Vector3 relativeVelocity = body2.Velocity - body1.Velocity;
-            float velocityAlongNormal = Vector3.Dot(relativeVelocity, normal);
-            
-            if (velocityAlongNormal > 0f)
-                continue;
-
-            float restitution = Mathf.Min(body1.Restitution, body2.Restitution);
-            
-            if (Mathf.Abs(restitution) < bounceThreshold)
-                restitution = 0f;
-            
-            Debug.Log($"Restitution: {restitution}");
-            
-            float invMass1 = body1.GetInverseMass();
-            float invMass2 = body2.GetInverseMass();
-            float totalInvMass = invMass1 + invMass2;
-            if (totalInvMass <= eps)
-                continue;
-            
-            float impulseMagnitude = -(1 + restitution) * velocityAlongNormal;
-            impulseMagnitude /= totalInvMass;
-            
-            // Normal impulse
-            Vector3 impulse = impulseMagnitude * normal;
-            body1.AddImpulse(-impulse);
-            body2.AddImpulse(impulse);
-            
-            // Friction impulse
-            Vector3 tangent = relativeVelocity - Vector3.Dot(relativeVelocity, normal) * normal;
-            if (tangent.sqrMagnitude > eps)
-            {
-                tangent.Normalize();
-                float velocityAlongTangent = Vector3.Dot(relativeVelocity, tangent);
-
-                if (velocityAlongTangent > eps)
-                {
-                    float staticFriction = Mathf.Sqrt(body1.StaticFriction * body2.StaticFriction);
-                    float dynamicFriction = Mathf.Sqrt(body1.DynamicFriction * body2.DynamicFriction);
-                    float frictionImpulseMag = -velocityAlongTangent / totalInvMass;
-
-                    float maxFriction = impulseMagnitude * staticFriction;
-                    Vector3 frictionImpulse;
-                    if (Mathf.Abs(frictionImpulseMag) < maxFriction)
-                    {
-                        // Static friction
-                        frictionImpulse = frictionImpulseMag * tangent;
-                    }
-                    else
-                    {
-                        // Dynamic friction
-                        frictionImpulse = -impulseMagnitude * dynamicFriction * tangent;
-                    }
-
-                    body1.AddImpulse(-frictionImpulse);
-                    body2.AddImpulse(frictionImpulse);
-                }
-            }
-            
-            // Positional correction
-            float penetration = Mathf.Max(pair.penetration - penetrationAllowance, 0f);
-            if (penetration > 0f)
-            {
-                Vector3 correction = (penetration / totalInvMass) * penetrationPercentage * normal;
-                if (body1.Type == CustomRigidbody.BodyType.Dynamic)
-                    body1.MoveCenter(-correction * invMass1);
-                if (body2.Type == CustomRigidbody.BodyType.Dynamic)
-                    body2.MoveCenter(correction * invMass2);
-            }
-        }
-    }
-
+    #region MonoBehaviour Methods
     void Start()
     {
         colliders = FindObjectsOfType<CustomCollider>().ToList();
@@ -223,9 +129,9 @@ public class PhysicsManager : MonoBehaviour
         List<EPA.CollisionPair> pairs = DetectCollisions();
         ResolveCollisions(pairs);
     }
+    #endregion
 
-
-    #region Tree
+    #region AABB Tree
 
     public void BuildAABBTree()
     {
@@ -416,8 +322,7 @@ public class PhysicsManager : MonoBehaviour
     }
 
     #endregion
-
-
+    
     #region Tree Helper Methods
 
     public int GetBoundIndexFromTree(int treeIndex)
@@ -487,163 +392,6 @@ public class PhysicsManager : MonoBehaviour
 
     #region MainCollisionFunctions
 
-    private static bool CheckGJKCollision(CustomCollider collider1, CustomCollider collider2, uint maxIterations,
-        ref List<Vector3> outGJKPoints)
-    {
-        float colliderScaleMagnitude = Mathf.Max(
-            collider1.transform.lossyScale.magnitude,
-            collider2.transform.lossyScale.magnitude
-        );
-        
-        float eps = 1e-6f * Mathf.Max(1f, colliderScaleMagnitude);
-        
-        Vector3 direction = collider2.transform.position - collider1.transform.position;
-        if (direction == Vector3.zero)
-            direction = Vector3.right;
-
-        List<Vector3> simplex = new List<Vector3> { GetSupport(collider1, collider2, direction) };
-
-        direction = -simplex[0];
-
-        for (int iter = 0; iter < maxIterations; iter++)
-        {
-            Vector3 newPoint = GetSupport(collider1, collider2, direction);
-
-            if (Vector3.Dot(newPoint, direction) <= eps)
-                return false;
-
-            simplex.Add(newPoint);
-
-            if (ContainsOrigin(simplex, ref direction, eps))
-            {
-                outGJKPoints = simplex;
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public static Vector3 GetSupport(CustomCollider collider1, CustomCollider collider2, Vector3 direction)
-    {
-        return collider1.GetSupport(direction) - collider2.GetSupport(-direction);
-    }
-
-    private static bool ContainsOrigin(List<Vector3> simplex, ref Vector3 direction, float eps)
-    {
-        if (simplex.Count == 2)
-        {
-            Vector3 a = simplex[1];
-            Vector3 b = simplex[0];
-
-            Vector3 ab = b - a;
-            Vector3 ao = -a;
-
-            if (Vector3.Dot(ab, ao) > eps)
-            {
-                direction = Vector3.Cross(Vector3.Cross(ab, ao), ab);
-            }
-            else
-            {
-                simplex.RemoveAt(0);
-                direction = ao;
-            }
-        }
-        else if (simplex.Count == 3)
-        {
-            Vector3 a = simplex[2];
-            Vector3 b = simplex[1];
-            Vector3 c = simplex[0];
-
-            Vector3 ab = b - a;
-            Vector3 ac = c - a;
-            Vector3 ao = -a;
-
-            Vector3 abc = Vector3.Cross(ab, ac);
-
-            if (Vector3.Dot(Vector3.Cross(abc, ac), ao) > eps)
-            {
-                if (Vector3.Dot(ac, ao) > eps)
-                {
-                    simplex.RemoveAt(1);
-                    direction = Vector3.Cross(Vector3.Cross(ac, ao), ac);
-                }
-                else
-                {
-                    simplex.RemoveAt(0);
-                    return ContainsOrigin(simplex, ref direction, eps);
-                }
-            }
-            else
-            {
-                if (Vector3.Dot(Vector3.Cross(ab, abc), ao) > eps)
-                {
-                    if (Vector3.Dot(ab, ao) > eps)
-                    {
-                        simplex.RemoveAt(0);
-                        direction = Vector3.Cross(Vector3.Cross(ab, ao), ab);
-                    }
-                    else
-                    {
-                        simplex.Clear();
-                        simplex.Add(a);
-                        direction = ao;
-                    }
-                }
-                else
-                {
-                    if (Vector3.Dot(abc, ao) > eps)
-                    {
-                        direction = abc;
-                    }
-                    else
-                    {
-                        (simplex[0], simplex[1]) = (simplex[1], simplex[0]);
-                        direction = -abc;
-                    }
-                }
-            }
-        }
-        else if (simplex.Count == 4)
-        {
-            Vector3 a = simplex[3];
-            Vector3 b = simplex[2];
-            Vector3 c = simplex[1];
-            Vector3 d = simplex[0];
-
-            Vector3 ao = -a;
-
-            Vector3 abc = Vector3.Cross(b - a, c - a);
-            Vector3 acd = Vector3.Cross(c - a, d - a);
-            Vector3 adb = Vector3.Cross(d - a, b - a);
-
-            if (Vector3.Dot(abc, ao) > eps)
-            {
-                simplex.RemoveAt(0);
-                direction = abc;
-                return false;
-            }
-
-            if (Vector3.Dot(acd, ao) > eps)
-            {
-                simplex.RemoveAt(2);
-                direction = acd;
-                return false;
-            }
-
-            if (Vector3.Dot(adb, ao) > eps)
-            {
-                simplex.RemoveAt(1);
-                direction = adb;
-                return false;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
     public List<EPA.CollisionPair> DetectCollisions()
     {
         List<(int, int)> broadPhasePairs = new List<(int, int)>();
@@ -660,24 +408,12 @@ public class PhysicsManager : MonoBehaviour
             CustomCollider colliderB = colliders[boundsTree[b].ColliderIndex];
 
             List<Vector3> outGJKPoints = new List<Vector3>();
-            if (CheckGJKCollision(colliderA, colliderB, 64, ref outGJKPoints))
+            if (GJK.CheckGJKCollision(colliderA, colliderB, 64, ref outGJKPoints))
             {
                 EPA.CollisionPair pair = EPA.ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);
                 if (pair.point != Vector3.zero && pair.normal != Vector3.zero && pair.penetration != 0f)
                 {
                     collisionPairs.Add(pair);
-                    
-                    //Debug.Log("Hit point : " + pair.point);
-                    //Debug.Log("Hit normal : " + pair.normal);
-                    //Debug.Log("Hit penetration : " + pair.penetration);
-                    
-                    //Debug.DrawLine(pair.point, pair.point + pair.normal * pair.penetration,  Color.blue, 10f);
-                    //float size = 0.05f; 
-                    //Vector3 p = pair.point;
-                    //Debug.DrawLine(p - Vector3.right * size, p + Vector3.right * size, Color.red, 10f);
-                    //Debug.DrawLine(p - Vector3.up * size, p + Vector3.up * size, Color.green, 10f);
-                    //Debug.DrawLine(p - Vector3.forward * size, p + Vector3.forward * size, Color.yellow, 10f);
-                    //continue;
                 }
             }
         }
@@ -749,6 +485,103 @@ public class PhysicsManager : MonoBehaviour
         DetectCollisionPairsRecursive(node1.leftIndex, node2.rightIndex, outPairs);
         DetectCollisionPairsRecursive(node1.rightIndex, node2.leftIndex, outPairs);
         DetectCollisionPairsRecursive(node1.rightIndex, node2.rightIndex, outPairs);
+    }
+    
+    public void ResolveCollisions(List<EPA.CollisionPair> collisionPairs)
+    {
+        if (collisionPairs.Count == 0)
+            return;
+
+        const float eps = 1e-5f;
+
+        Debug.Log($"Pairs to resolve: {collisionPairs.Count}");
+
+        foreach (EPA.CollisionPair pair in collisionPairs)
+        {
+            CustomRigidbody body1 = pair.body1;
+            CustomRigidbody body2 = pair.body2;
+
+            if (!body1 || !body2)
+                continue;
+
+            if (body1.Type != CustomRigidbody.BodyType.Dynamic && body2.Type != CustomRigidbody.BodyType.Dynamic)
+                continue;
+
+            Vector3 normal = pair.normal.sqrMagnitude > eps ? pair.normal.normalized : Vector3.up;
+
+            Vector3 ab = body2.Center - body1.Center;
+            if (Vector3.Dot(ab, normal) <= 0f)
+                normal = -normal;
+
+            Vector3 relativeVelocity = body2.Velocity - body1.Velocity;
+            float velocityAlongNormal = Vector3.Dot(relativeVelocity, normal);
+
+            if (velocityAlongNormal > 0f)
+                continue;
+
+            float restitution = Mathf.Min(body1.Restitution, body2.Restitution);
+
+            if (Mathf.Abs(restitution) < bounceThreshold)
+                restitution = 0f;
+
+            Debug.Log($"Restitution: {restitution}");
+
+            float invMass1 = body1.GetInverseMass();
+            float invMass2 = body2.GetInverseMass();
+            float totalInvMass = invMass1 + invMass2;
+            if (totalInvMass <= eps)
+                continue;
+
+            float impulseMagnitude = -(1 + restitution) * velocityAlongNormal;
+            impulseMagnitude /= totalInvMass;
+
+            // Normal impulse
+            Vector3 impulse = impulseMagnitude * normal;
+            body1.AddImpulse(-impulse);
+            body2.AddImpulse(impulse);
+
+            // Friction impulse
+            Vector3 tangent = relativeVelocity - Vector3.Dot(relativeVelocity, normal) * normal;
+            if (tangent.sqrMagnitude > eps)
+            {
+                tangent.Normalize();
+                float velocityAlongTangent = Vector3.Dot(relativeVelocity, tangent);
+
+                if (velocityAlongTangent > eps)
+                {
+                    float staticFriction = Mathf.Sqrt(body1.StaticFriction * body2.StaticFriction);
+                    float dynamicFriction = Mathf.Sqrt(body1.DynamicFriction * body2.DynamicFriction);
+                    float frictionImpulseMag = -velocityAlongTangent / totalInvMass;
+
+                    float maxFriction = impulseMagnitude * staticFriction;
+                    Vector3 frictionImpulse;
+                    if (Mathf.Abs(frictionImpulseMag) < maxFriction)
+                    {
+                        // Static friction
+                        frictionImpulse = frictionImpulseMag * tangent;
+                    }
+                    else
+                    {
+                        // Dynamic friction
+                        frictionImpulse = -impulseMagnitude * dynamicFriction * tangent;
+                    }
+
+                    body1.AddImpulse(-frictionImpulse);
+                    body2.AddImpulse(frictionImpulse);
+                }
+            }
+
+            // Positional correction
+            float penetration = Mathf.Max(pair.penetration - penetrationAllowance, 0f);
+            if (penetration > 0f)
+            {
+                Vector3 correction = (penetration / totalInvMass) * penetrationPercentage * normal;
+                if (body1.Type == CustomRigidbody.BodyType.Dynamic)
+                    body1.MoveCenter(-correction * invMass1);
+                if (body2.Type == CustomRigidbody.BodyType.Dynamic)
+                    body2.MoveCenter(correction * invMass2);
+            }
+        }
     }
     #endregion
 }

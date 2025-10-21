@@ -218,7 +218,7 @@ public class EPA : MonoBehaviour
 
             float dist = Vector3.Dot(normal, closestFace.a);
 
-            Vector3 supportPoint = PhysicsManager.GetSupport(collider1, collider2, normal);
+            Vector3 supportPoint = GJK.GetSupport(collider1, collider2, normal);
             float supportDist = Vector3.Dot(normal, supportPoint);
 
             if ((supportDist - dist) <= tolerance)

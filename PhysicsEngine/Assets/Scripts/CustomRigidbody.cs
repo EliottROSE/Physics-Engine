@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -14,6 +15,7 @@ public class CustomRigidbody : MonoBehaviour
 
     public const float GRAVITYCONST = -9.81f;
 
+    // Collision resolution properties
     [SerializeField] private BodyType bodyType = BodyType.Static;
     [SerializeField] private float mass = 1.0f; // kg
     [SerializeField] private float airDensity = 1.225f;

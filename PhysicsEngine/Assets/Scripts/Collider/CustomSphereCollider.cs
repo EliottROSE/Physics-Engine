@@ -27,15 +27,6 @@ public class CustomSphereCollider : CustomCollider
     {
         aabb.SetAABB(transform.position, Vector3.one * (radius * 2f));
     }
-
-    /*public override Vector3 GetSupport(Vector3 direction)
-    {
-        if (direction.sqrMagnitude < 1e-12f)
-            direction = Vector3.right;
-        else
-            direction.Normalize();
-        return transform.position + radius * direction;
-    }*/
     
     public override float GetDragCoefficient() { return dragCoefficient; }
     
