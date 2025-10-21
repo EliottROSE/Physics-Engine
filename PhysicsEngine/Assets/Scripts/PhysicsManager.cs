@@ -116,6 +116,7 @@ public class PhysicsManager : MonoBehaviour
         }
     }
 
+    private bool isRemove = false;
     void FixedUpdate()
     {
         // TODO : Change to update existing tree instead of rebuild every frame
@@ -125,7 +126,19 @@ public class PhysicsManager : MonoBehaviour
         availableBoundsTreeIndexes.Clear();
         availableBoundsIndexes.Clear();
         BuildAABBTree();
-        
+        //if (Input.GetKeyDown(KeyCode.Space))
+        //{
+        //    if (!isRemove)
+        //    {
+        //        RemoveAABB(colliders[0].GetAABB());
+        //        isRemove = true;
+        //    }
+        //    else
+        //    {
+        //        isRemove = false;
+        //         InsertAABB(colliders[0].GetAABB(), 0);
+        //    }
+        //}
         List<EPA.CollisionPair> pairs = DetectCollisions();
         ResolveCollisions(pairs);
     }
@@ -158,6 +171,18 @@ public class PhysicsManager : MonoBehaviour
             InsertAABB(bound, i);
             i++;
         }
+    }
+
+    public void UpdateTree(CustomCollider collider)
+    {//TODO : Uncomment this when its working
+        //AABB bound = collider.GetAABB();
+        //
+        //int colliderIndex = colliders.IndexOf(collider);
+        //if (colliderIndex < 0)
+        //    return;
+        //
+        //RemoveAABB(bound);
+        //InsertAABB(bound, colliderIndex);
     }
 
     public void InsertAABB(AABB bound, int colliderIndex)
@@ -240,33 +265,37 @@ public class PhysicsManager : MonoBehaviour
 
     public void RemoveAABB(AABB bound)
     {
+        if (bound == null) return;
+
         int nodeIndex = -1;
         bool isLeft = true;
 
-        // Find the leaf node corresponding to the AABB
         for (int i = 0; i < boundsTree.Count; i++)
         {
             Node node = boundsTree[i];
-            if (node != null && node.isLeaf && bounds[node.AABBIndex] == bound)
+            if (node == null || !node.isLeaf) continue;
+            int aabbIdx = node.AABBIndex;
+            if (aabbIdx >= 0 && aabbIdx < bounds.Count && bounds[aabbIdx] == bound)
             {
                 nodeIndex = i;
-                if (node.parentIndex != -1 && boundsTree[node.parentIndex].rightIndex == nodeIndex)
-                    isLeft = false;
+                if (node.parentIndex != -1)
+                {
+                    Node parent = boundsTree[node.parentIndex];
+                    if (parent != null && parent.rightIndex == nodeIndex)
+                        isLeft = false;
+                }
+
                 break;
             }
         }
 
-        if (nodeIndex == -1)
-            return; // Not found
+        if (nodeIndex == -1) return;
 
         Node leafNode = boundsTree[nodeIndex];
         int oldParentIndex = leafNode.parentIndex;
 
         if (oldParentIndex == -1)
         {
-            // Only one node in the tree, remove root
-            bounds[leafNode.AABBIndex] = null;
-            availableBoundsIndexes.Add(leafNode.AABBIndex);
             boundsTree[nodeIndex] = null;
             availableBoundsTreeIndexes.Add(nodeIndex);
             root = -1;
@@ -274,40 +303,45 @@ public class PhysicsManager : MonoBehaviour
         }
 
         Node oldParent = boundsTree[oldParentIndex];
-        int siblingIndex = (oldParent.leftIndex == nodeIndex) ? oldParent.rightIndex : oldParent.leftIndex;
-        Node sibling = boundsTree[siblingIndex];
+        if (oldParent == null) return;
 
-        // Update sibling parent
+        int siblingIndex = (oldParent.leftIndex == nodeIndex) ? oldParent.rightIndex : oldParent.leftIndex;
+        if (siblingIndex < 0 || siblingIndex >= boundsTree.Count) return;
+        Node sibling = boundsTree[siblingIndex];
+        if (sibling == null) return;
+
         sibling.parentIndex = oldParent.parentIndex;
 
         if (oldParent.parentIndex == -1)
         {
-            // Old parent was root
             root = siblingIndex;
         }
         else
         {
             Node grandParent = boundsTree[oldParent.parentIndex];
-            if (grandParent.leftIndex == oldParentIndex)
-                grandParent.leftIndex = siblingIndex;
-            else
-                grandParent.rightIndex = siblingIndex;
+            if (grandParent != null)
+            {
+                if (grandParent.leftIndex == oldParentIndex)
+                    grandParent.leftIndex = siblingIndex;
+                else
+                    grandParent.rightIndex = siblingIndex;
+            }
         }
 
-        // Remove old parent + AABB
-        bounds[oldParent.AABBIndex] = null;
-        availableBoundsIndexes.Add(oldParent.AABBIndex);
+        if (oldParent.AABBIndex >= 0 && oldParent.AABBIndex < bounds.Count)
+        {
+            bounds[oldParent.AABBIndex] = null;
+            availableBoundsIndexes.Add(oldParent.AABBIndex);
+        }
+
         boundsTree[oldParentIndex] = null;
         availableBoundsTreeIndexes.Add(oldParentIndex);
 
-        // Remove leaf node + AABB
-        bounds[leafNode.AABBIndex] = null;
-        availableBoundsIndexes.Add(leafNode.AABBIndex);
         boundsTree[nodeIndex] = null;
         availableBoundsTreeIndexes.Add(nodeIndex);
 
-        if (boundsTree[siblingIndex].parentIndex != -1)
-            UpdateFromChildren(boundsTree[siblingIndex].parentIndex);
+        if (sibling.parentIndex != -1)
+            UpdateFromChildren(sibling.parentIndex);
     }
 
     private void UpdateFromChildren(int nodeIndex)

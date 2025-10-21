@@ -34,6 +34,8 @@ public class CustomRigidbody : MonoBehaviour
     public float Restitution => restitution;
     public float StaticFriction => staticFriction;
     public float DynamicFriction => dynamicFriction;
+
+    private bool isMoving = false;
     
     public float GetInverseMass()
     {
@@ -100,14 +102,20 @@ public class CustomRigidbody : MonoBehaviour
             velocity.y += GRAVITYCONST * Time.fixedDeltaTime;
             
             ApplyAirResistance();
+            isMoving = true;
         }
-        
+
         if (bodyType != BodyType.Static)
+        {
             center += velocity * Time.fixedDeltaTime;
+            isMoving = true;
+        }
     }
 
     private void LateUpdate()
     {
         transform.position = center;
+        if (isMoving)
+            PhysicsManager.Instance.UpdateTree(collider);
     }
 }
