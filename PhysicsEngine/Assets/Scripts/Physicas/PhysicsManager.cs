@@ -528,8 +528,6 @@ public class PhysicsManager : MonoBehaviour
 
         const float eps = 1e-5f;
 
-        Debug.Log($"Pairs to resolve: {collisionPairs.Count}");
-
         foreach (EPA.CollisionPair pair in collisionPairs)
         {
             CustomRigidbody body1 = pair.body1;

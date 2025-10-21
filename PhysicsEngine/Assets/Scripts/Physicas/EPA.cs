@@ -67,14 +67,14 @@ public class EPA : MonoBehaviour
     #endregion
 
     #region  Helper Methods
-    public static int GetClosestFace(List<EPA.Triangle> faces)
+    public static int GetClosestFace(List<Triangle> faces)
     {
         int closest = 0;
         float minDistance = float.MaxValue;
 
         for (int i = 0; i < faces.Count; i++)
         {
-            EPA.Triangle face = faces[i];
+            Triangle face = faces[i];
             Vector3 n = face.GetNormal();
 
             float distance = Vector3.Dot(n, face.a);
@@ -132,70 +132,141 @@ public class EPA : MonoBehaviour
     // Rebuild the polytope with a new support point
     public static void ReBuildPolytop(ref List<Triangle> polytope, Vector3 newPoint)
     {
-        // Get all faces visible from the new support point
+        // Collect visible faces
         List<int> visibleFaces = new List<int>();
         for (int i = 0; i < polytope.Count; i++)
         {
             Triangle face = polytope[i];
             Vector3 normal = face.GetNormal();
             if (Vector3.Dot(normal, newPoint - face.a) > eps)
-            {
                 visibleFaces.Add(i);
+        }
+
+        if (visibleFaces.Count == 0)
+            return;
+
+        var edgeMap = new Dictionary<(Vector3Int, Vector3Int), (Vector3 A, Vector3 B)>();
+
+        void TryToggleEdge(Vector3 p1, Vector3 p2)
+        {
+            var key = EdgeKey(p1, p2);
+            if (edgeMap.TryGetValue(key, out var existing))
+            {
+                // If existing is the reverse of current, cancel the edge (internal)
+                if (existing.A == p2 && existing.B == p1)
+                {
+                    edgeMap.Remove(key);
+                }
+                else
+                {
+                    // Duplicate same direction or numerical mismatch: keep first
+                }
+            }
+            else
+            {
+                edgeMap[key] = (p1, p2); // store directed edge from removed face
             }
         }
 
-        var counts = new Dictionary<(Vector3Int, Vector3Int), int>();
-        var rawEdge = new Dictionary<(Vector3Int, Vector3Int), (Vector3 A, Vector3 B)>();
-
-        foreach (int idx in visibleFaces)
+        foreach (int idx in visibleFaces.Distinct())
         {
             Triangle f = polytope[idx];
-
-            var key1 = EdgeKey(f.a, f.b);
-            if (!counts.ContainsKey(key1))
-            {
-                counts[key1] = 1;
-                rawEdge[key1] = (f.a, f.b);
-            }
-            else counts[key1]++;
-
-            var key2 = EdgeKey(f.b, f.c);
-            if (!counts.ContainsKey(key2))
-            {
-                counts[key2] = 1;
-                rawEdge[key2] = (f.b, f.c);
-            }
-            else counts[key2]++;
-
-            var key3 = EdgeKey(f.c, f.a);
-            if (!counts.ContainsKey(key3))
-            {
-                counts[key3] = 1;
-                rawEdge[key3] = (f.c, f.a);
-            }
-            else counts[key3]++;
+            TryToggleEdge(f.a, f.b);
+            TryToggleEdge(f.b, f.c);
+            TryToggleEdge(f.c, f.a);
         }
 
-        // Remove visible faces
         foreach (int idx in visibleFaces.Distinct().OrderByDescending(i => i))
         {
-            if (idx >= 0 && idx < polytope.Count) polytope.RemoveAt(idx);
+            if (idx >= 0 && idx < polytope.Count)
+                polytope.RemoveAt(idx);
         }
 
-        // Add new faces
-        foreach (var kv in counts)
+        foreach (var kv in edgeMap.Values)
         {
-            if (kv.Value != 1) continue;
-            var (A, B) = rawEdge[kv.Key];
+            Vector3 A = kv.A;
+            Vector3 B = kv.B;
 
-            Triangle nf = new Triangle(B, A, newPoint);
-            Vector3 n = Vector3.Cross(nf.b - nf.a, nf.c - nf.a).normalized;
+            Triangle nf = new Triangle(A, B, newPoint);
 
-            if (Vector3.Dot(n, newPoint) < 0f)
-                nf.Set(A, B, newPoint);
+            Vector3 n = Vector3.Cross(nf.b - nf.a, nf.c - nf.a);
+            if (n.sqrMagnitude <= 1e-12f)
+                continue; // degenerate, skip
+
+            n.Normalize();
+            if (Vector3.Dot(n, nf.a) < 0f)
+            {
+                // flip winding
+                nf.Set(B, A, newPoint);
+            }
 
             polytope.Add(nf);
         }
+        //// Get all faces visible from the new support point
+        //List<int> visibleFaces = new List<int>();
+        //for (int i = 0; i < polytope.Count; i++)
+        //{
+        //    Triangle face = polytope[i];
+        //    Vector3 normal = face.GetNormal();
+        //    if (Vector3.Dot(normal, newPoint - face.a) > eps)
+        //    {
+        //        visibleFaces.Add(i);
+        //    }
+        //}
+        //
+        //Debug.Log(visibleFaces.Count);
+        //var counts = new Dictionary<(Vector3Int, Vector3Int), int>();
+        //var rawEdge = new Dictionary<(Vector3Int, Vector3Int), (Vector3 A, Vector3 B)>();
+        //
+        //foreach (int idx in visibleFaces)
+        //{
+        //    Triangle f = polytope[idx];
+        //
+        //    var key1 = EdgeKey(f.a, f.b);
+        //    if (!counts.ContainsKey(key1))
+        //    {
+        //        counts[key1] = 1;
+        //        rawEdge[key1] = (f.a, f.b);
+        //    }
+        //    else counts[key1]++;
+        //
+        //    var key2 = EdgeKey(f.b, f.c);
+        //    if (!counts.ContainsKey(key2))
+        //    {
+        //        counts[key2] = 1;
+        //        rawEdge[key2] = (f.b, f.c);
+        //    }
+        //    else counts[key2]++;
+        //
+        //    var key3 = EdgeKey(f.c, f.a);
+        //    if (!counts.ContainsKey(key3))
+        //    {
+        //        counts[key3] = 1;
+        //        rawEdge[key3] = (f.c, f.a);
+        //    }
+        //    else counts[key3]++;
+        //}
+        //
+        //// Remove visible faces
+        //foreach (int idx in visibleFaces.Distinct().OrderByDescending(i => i))
+        //{
+        //    if (idx >= 0 && idx < polytope.Count) polytope.RemoveAt(idx);
+        //}
+        //
+        //// Add new faces
+        //foreach (var kv in counts)
+        //{
+        //    if (kv.Value != 1) continue;
+        //    var (A, B) = rawEdge[kv.Key];
+        //
+        //    Triangle nf = new Triangle(A, B, newPoint);
+        //    Vector3 n = Vector3.Cross(nf.b - nf.a, nf.c - nf.a).normalized;
+        //
+        //    if (Vector3.Dot(n, newPoint) < 0f)
+        //        nf.Set(B, A, newPoint);
+        //
+        //    polytope.Add(nf);
+        //}
     }
     #endregion
 
