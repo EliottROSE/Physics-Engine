@@ -122,33 +122,12 @@ public class PhysicsManager : MonoBehaviour
     private bool isRemove = false;
     void FixedUpdate()
     {
-        // TODO : Change to update existing tree instead of rebuild every frame
-        boundsTree.Clear();
-        bounds.Clear();
-        root = -1;
-        availableBoundsTreeIndexes.Clear();
-        availableBoundsIndexes.Clear();
-        BuildAABBTree();
-        //if (Input.GetKeyDown(KeyCode.Space))
-        //{
-        //    if (!isRemove)
-        //    {
-        //        RemoveAABB(colliders[0].GetAABB());
-        //        isRemove = true;
-        //    }
-        //    else
-        //    {
-        //        isRemove = false;
-        //         InsertAABB(colliders[0].GetAABB(), 0);
-        //    }
-        //}
         List<EPA.CollisionPair> pairs = DetectCollisions();
         ResolveCollisions(pairs);
     }
     #endregion
 
     #region AABB Tree
-
     private int AddColliderToTracking(CustomCollider collider)
     {
         if (!collider) return -1;
@@ -242,14 +221,14 @@ public class PhysicsManager : MonoBehaviour
 
     public void UpdateTree(CustomCollider collider)
     {//TODO : Uncomment this when its working
-        //AABB bound = collider.GetAABB();
-        //
-        //int colliderIndex = colliders.IndexOf(collider);
-        //if (colliderIndex < 0)
-        //    return;
-        //
-        //RemoveAABB(bound);
-        //InsertAABB(bound, colliderIndex);
+        AABB bound = collider.GetAABB();
+        
+        int colliderIndex = colliders.IndexOf(collider);
+        if (colliderIndex < 0)
+            return;
+        
+        RemoveAABB(bound);
+        InsertAABB(bound, colliderIndex);
     }
     public void InsertAABB(AABB bound, int colliderIndex)
     {
