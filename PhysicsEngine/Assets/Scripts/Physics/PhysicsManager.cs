@@ -251,84 +251,6 @@ public class PhysicsManager : MonoBehaviour
         //RemoveAABB(bound);
         //InsertAABB(bound, colliderIndex);
     }
-
-    //public void InsertAABB(AABB bound, int colliderIndex)
-    //{
-    //    // If the tree is empty the first bound become the root
-    //    if (boundsTree.Count == 0 || root == -1)
-    //    {
-    //        Node node = new Node(-1, -1, -1, true, 0, colliderIndex);
-    //        int nodeIndex = AddAndReturnNodeIndex(node);
-    //        AddBound(bound);
-    //        root = nodeIndex;
-    //        return;
-    //    }
-    //
-    //    Node currentNode = boundsTree[root];
-    //    bool isLeft = true;
-    //    while (!currentNode.isLeaf)
-    //    {
-    //        float leftValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.leftIndex)], bound);
-    //        float rightValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.rightIndex)], bound);
-    //
-    //        if (leftValue < rightValue)
-    //        {
-    //            currentNode = boundsTree[currentNode.leftIndex];
-    //        }
-    //        else
-    //        {
-    //            currentNode = boundsTree[currentNode.rightIndex];
-    //            isLeft = false;
-    //        }
-    //    } //
-    //
-    //    // New parent abstract detection zone
-    //    AABB newParentAABB = new AABB();
-    //    newParentAABB.SetAABB(bounds[currentNode.AABBIndex], bound);
-    //    int newParentAABBIndex = AddAndReturnBoundIndex(newParentAABB);
-    //
-    //    int newLeftIndex = 0;
-    //
-    //    // Special case if process root
-    //    if (currentNode.parentIndex == -1)
-    //    {
-    //        newLeftIndex = root;
-    //    }
-    //    else
-    //    {
-    //        if (isLeft)
-    //            newLeftIndex = boundsTree[currentNode.parentIndex].leftIndex;
-    //        else
-    //            newLeftIndex = boundsTree[currentNode.parentIndex].rightIndex;
-    //    }
-    //
-    //    // left is currentNode
-    //    Node newParentNode = new Node(currentNode.parentIndex, newLeftIndex, -1, false, newParentAABBIndex, -1);
-    //    int newParentNodeIndex = AddAndReturnNodeIndex(newParentNode);
-    //
-    //    if (currentNode.parentIndex == -1)
-    //    {
-    //        root = newParentNodeIndex;
-    //    }
-    //    else
-    //    {
-    //        if (isLeft)
-    //            boundsTree[currentNode.parentIndex].leftIndex = newParentNodeIndex;
-    //        else
-    //            boundsTree[currentNode.parentIndex].rightIndex = newParentNodeIndex;
-    //    }
-    //
-    //    // Change currentNode informations
-    //    currentNode.parentIndex = newParentNodeIndex;
-    //
-    //    // new bound node
-    //    int newBoundIndex = AddAndReturnBoundIndex(bound);
-    //    Node newBoundNode = new Node(newParentNodeIndex, -1, -1, true, newBoundIndex, colliderIndex);
-    //    int newBoundNodeIndex = AddAndReturnNodeIndex(newBoundNode);
-    //    boundsTree[newParentNodeIndex].rightIndex = newBoundNodeIndex;
-    //
-    //    UpdateFromChildren(newParentNodeIndex);
-    //}
     public void InsertAABB(AABB bound, int colliderIndex)
     {
         if (bound == null) return;
@@ -417,88 +339,7 @@ public class PhysicsManager : MonoBehaviour
 
         UpdateFromChildren(newParentNodeIndex);
     }
-
-    //public void RemoveAABB(AABB bound)
-    //{
-    //    if (bound == null) return;
-    //
-    //    int nodeIndex = -1;
-    //    bool isLeft = true;
-    //
-    //    for (int i = 0; i < boundsTree.Count; i++)
-    //    {
-    //        Node node = boundsTree[i];
-    //        if (node == null || !node.isLeaf) continue;
-    //        int aabbIdx = node.AABBIndex;
-    //        if (aabbIdx >= 0 && aabbIdx < bounds.Count && bounds[aabbIdx] == bound)
-    //        {
-    //            nodeIndex = i;
-    //            if (node.parentIndex != -1)
-    //            {
-    //                Node parent = boundsTree[node.parentIndex];
-    //                if (parent != null && parent.rightIndex == nodeIndex)
-    //                    isLeft = false;
-    //            }
-    //
-    //            break;
-    //        }
-    //    }
-    //
-    //    if (nodeIndex == -1) return;
-    //
-    //    Node leafNode = boundsTree[nodeIndex];
-    //    int oldParentIndex = leafNode.parentIndex;
-    //
-    //    if (oldParentIndex == -1)
-    //    {
-    //        boundsTree[nodeIndex] = null;
-    //        availableBoundsTreeIndexes.Add(nodeIndex);
-    //        root = -1;
-    //        return;
-    //    }
-    //
-    //    Node oldParent = boundsTree[oldParentIndex];
-    //    if (oldParent == null) return;
-    //
-    //    int siblingIndex = (oldParent.leftIndex == nodeIndex) ? oldParent.rightIndex : oldParent.leftIndex;
-    //    if (siblingIndex < 0 || siblingIndex >= boundsTree.Count) return;
-    //    Node sibling = boundsTree[siblingIndex];
-    //    if (sibling == null) return;
-    //
-    //    sibling.parentIndex = oldParent.parentIndex;
-    //
-    //    if (oldParent.parentIndex == -1)
-    //    {
-    //        root = siblingIndex;
-    //    }
-    //    else
-    //    {
-    //        Node grandParent = boundsTree[oldParent.parentIndex];
-    //        if (grandParent != null)
-    //        {
-    //            if (grandParent.leftIndex == oldParentIndex)
-    //                grandParent.leftIndex = siblingIndex;
-    //            else
-    //                grandParent.rightIndex = siblingIndex;
-    //        }
-    //    }
-    //
-    //    if (oldParent.AABBIndex >= 0 && oldParent.AABBIndex < bounds.Count)
-    //    {
-    //        bounds[oldParent.AABBIndex] = null;
-    //        availableBoundsIndexes.Add(oldParent.AABBIndex);
-    //    }
-    //
-    //    boundsTree[oldParentIndex] = null;
-    //    availableBoundsTreeIndexes.Add(oldParentIndex);
-    //
-    //    boundsTree[nodeIndex] = null;
-    //    availableBoundsTreeIndexes.Add(nodeIndex);
-    //
-    //    if (sibling.parentIndex != -1)
-    //        UpdateFromChildren(sibling.parentIndex);
-    //}
-    //
+    
     public void RemoveAABB(AABB bound)
     {
         if (bound == null) return;
@@ -689,6 +530,7 @@ public class PhysicsManager : MonoBehaviour
                 EPA.CollisionPair pair = EPA.ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);
                 if (pair.point != Vector3.zero && pair.normal != Vector3.zero && pair.penetration != 0f)
                 {
+                    colliderA.TriggerEnter(colliderB);
                     colliderB.TriggerEnter(colliderA);
                     collisionPairs.Add(pair);
                 }

@@ -30,22 +30,30 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float Money = 100f;
     [SerializeField] private float CurrentMoneyPerBall = 10f;
     
-    [SerializeField] private Button SpawnBallButton;
-    [SerializeField] private Button AddMoneyButton;
-    [SerializeField] private Button RemoveMoneyButton;
     [SerializeField] private TMP_Text MoneyText;
+    [SerializeField] private TMP_Text BallValueText;
     
     [SerializeField] private Button DebugButton;
 
     public void Start()
     {
         SetMoneyText();
+        SetBallValueText();
     }
 
     public void ModifyMoney(float multiplier, float ballValue)
     {
         Money += ballValue * multiplier;
         SetMoneyText();
+    }
+    public void SetMoneyText()
+    {
+        MoneyText.text = "Money : " + Money;
+    }
+
+    public void SetBallValueText()
+    {
+        BallValueText.text = "Ball value : " + CurrentMoneyPerBall;
     }
     
     public void OnSpawnBallButtonClick()
@@ -61,8 +69,16 @@ public class GameManager : MonoBehaviour
         SetMoneyText();
     }
     
-    public void SetMoneyText()
+    public void OnAddMoneyButtonClick()
     {
-        MoneyText.text = "Money : " + Money;
+        CurrentMoneyPerBall += 5f;
+        SetBallValueText();
     }
+    
+    public void OnRemoveMoneyButtonClick()
+    {
+        CurrentMoneyPerBall -= 5f;
+        SetBallValueText();
+    }
+    
 }
