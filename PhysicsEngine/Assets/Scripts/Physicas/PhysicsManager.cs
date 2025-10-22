@@ -540,12 +540,18 @@ public class PhysicsManager : MonoBehaviour
                 continue;
 
             Vector3 normal = pair.normal.sqrMagnitude > eps ? pair.normal.normalized : Vector3.up;
+            Vector3 contact = pair.point;
 
             Vector3 ab = body2.Center - body1.Center;
             if (Vector3.Dot(ab, normal) <= 0f)
                 normal = -normal;
+            
+            Vector3 ra = contact - body1.Center;
+            Vector3 rb = contact - body2.Center;
 
-            Vector3 relativeVelocity = body2.Velocity - body1.Velocity;
+            Vector3 v1p = body1.Velocity + Vector3.Cross(body1.AngularVelocity, ra);
+            Vector3 v2p = body2.Velocity + Vector3.Cross(body2.AngularVelocity, rb);
+            Vector3 relativeVelocity = v2p - v1p;
             float velocityAlongNormal = Vector3.Dot(relativeVelocity, normal);
 
             if (velocityAlongNormal > 0f)
@@ -553,7 +559,7 @@ public class PhysicsManager : MonoBehaviour
 
             float restitution = Mathf.Min(body1.Restitution, body2.Restitution);
 
-            if (Mathf.Abs(restitution) < bounceThreshold)
+            if (Mathf.Abs(velocityAlongNormal) < bounceThreshold)
                 restitution = 0f;
 
             Debug.Log($"Restitution: {restitution}");
@@ -564,13 +570,32 @@ public class PhysicsManager : MonoBehaviour
             if (totalInvMass <= eps)
                 continue;
 
-            float impulseMagnitude = -(1 + restitution) * velocityAlongNormal;
-            impulseMagnitude /= totalInvMass;
+            Vector3 raCrossN = Vector3.Cross(ra, normal);
+            Vector3 rbCrossN = Vector3.Cross(rb, normal);
+            
+            Matrix4x4 invInertia1 = body1.GetInverseInertiaTensorWorld();
+            Matrix4x4 invInertia2 = body2.GetInverseInertiaTensorWorld();
+
+            Vector3 termA = Vector3.Cross(invInertia1.MultiplyVector(raCrossN), ra);
+            Vector3 termB = Vector3.Cross(invInertia2.MultiplyVector(rbCrossN), rb);
+            float angularFactor = Mathf.Max(0f, Vector3.Dot(termA + termB, normal));
+
+            float denom = totalInvMass + angularFactor;
+
+            float impulseMagnitude = -(1f + restitution) * velocityAlongNormal / denom;
+            if (!float.IsFinite(impulseMagnitude))
+                continue;
 
             // Normal impulse
             Vector3 impulse = impulseMagnitude * normal;
+
             body1.AddImpulse(-impulse);
-            body2.AddImpulse(impulse);
+            body2.AddImpulse( impulse);
+
+            Vector3 angImp1 = invInertia1.MultiplyVector(Vector3.Cross(ra, -impulse));
+            Vector3 angImp2 = invInertia2.MultiplyVector(Vector3.Cross(rb,  impulse));
+            body1.AddAngularImpulse(angImp1);
+            body2.AddAngularImpulse(angImp2);
 
             // Friction impulse
             Vector3 tangent = relativeVelocity - Vector3.Dot(relativeVelocity, normal) * normal;
@@ -579,27 +604,37 @@ public class PhysicsManager : MonoBehaviour
                 tangent.Normalize();
                 float velocityAlongTangent = Vector3.Dot(relativeVelocity, tangent);
 
-                if (velocityAlongTangent > eps)
+                if (Mathf.Abs(velocityAlongTangent) > eps)
                 {
-                    float staticFriction = Mathf.Sqrt(body1.StaticFriction * body2.StaticFriction);
-                    float dynamicFriction = Mathf.Sqrt(body1.DynamicFriction * body2.DynamicFriction);
-                    float frictionImpulseMag = -velocityAlongTangent / totalInvMass;
+                    Vector3 raCrossT = Vector3.Cross(ra, tangent);
+                    Vector3 rbCrossT = Vector3.Cross(rb, tangent);
+                    Vector3 termAT = Vector3.Cross(invInertia1.MultiplyVector(raCrossT), ra);
+                    Vector3 termBT = Vector3.Cross(invInertia2.MultiplyVector(rbCrossT), rb);
+                    float angularFactorT = Mathf.Max(0f, Vector3.Dot(termAT + termBT, tangent));
+                    float denomT = totalInvMass + angularFactorT;
 
-                    float maxFriction = impulseMagnitude * staticFriction;
-                    Vector3 frictionImpulse;
-                    if (Mathf.Abs(frictionImpulseMag) < maxFriction)
+                    if (denomT > eps)
                     {
-                        // Static friction
-                        frictionImpulse = frictionImpulseMag * tangent;
-                    }
-                    else
-                    {
-                        // Dynamic friction
-                        frictionImpulse = -impulseMagnitude * dynamicFriction * tangent;
-                    }
+                        float jT = -velocityAlongTangent / denomT;
 
-                    body1.AddImpulse(-frictionImpulse);
-                    body2.AddImpulse(frictionImpulse);
+                        float muS = Mathf.Sqrt(body1.StaticFriction * body2.StaticFriction);
+                        float muD = Mathf.Sqrt(body1.DynamicFriction * body2.DynamicFriction);
+                        float maxStatic = Mathf.Abs(impulseMagnitude) * muS;
+
+                        Vector3 jtVec = (Mathf.Abs(jT) < maxStatic)
+                            ? jT * tangent                                   // statique
+                            : -Mathf.Sign(velocityAlongTangent) * muD * Mathf.Abs(impulseMagnitude) * tangent; // dynamique
+
+                        // Linéaire
+                        body1.AddImpulse(-jtVec);
+                        body2.AddImpulse( jtVec);
+
+                        // Angulaire
+                        Vector3 angF1 = invInertia1.MultiplyVector(Vector3.Cross(ra, -jtVec));
+                        Vector3 angF2 = invInertia2.MultiplyVector(Vector3.Cross(rb,  jtVec));
+                        body1.AddAngularImpulse(angF1);
+                        body2.AddAngularImpulse(angF2);
+                    }
                 }
             }
 

@@ -21,9 +21,9 @@ public class CustomBoxCollider : CustomCollider
         base.Awake();
     }
 
-    protected override void Update()
+    protected override void FixedUpdate()
     {
-        base.Update();
+        base.FixedUpdate();
         aabb.SetAABB(points);
     }
 
@@ -40,7 +40,7 @@ public class CustomBoxCollider : CustomCollider
             direction.Normalize();
         Vector3 localDir = Quaternion.Inverse(transform.rotation) * direction;
         
-        Vector3 halfExtents = transform.localScale * 0.5f;
+        Vector3 halfExtents = transform.lossyScale * 0.5f;
         Vector3 localSupport = new Vector3(
             localDir.x >= 0 ? halfExtents.x : -halfExtents.x,
             localDir.y >= 0 ? halfExtents.y : -halfExtents.y,
@@ -59,7 +59,7 @@ public class CustomBoxCollider : CustomCollider
         float absY = Mathf.Abs(localDir.y);
         float absZ = Mathf.Abs(localDir.z);
 
-        Vector3 halfExtents = transform.localScale * 0.5f;
+        Vector3 halfExtents = transform.lossyScale * 0.5f;
 
         float areaXY = (halfExtents.x * 2) * (halfExtents.y * 2) * absZ;
         float areaYZ = (halfExtents.y * 2) * (halfExtents.z * 2) * absX;

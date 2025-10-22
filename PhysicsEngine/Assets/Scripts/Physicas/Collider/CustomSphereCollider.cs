@@ -13,18 +13,21 @@ public class CustomSphereCollider : CustomCollider
         GameObject sphereGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         Mesh mesh = sphereGO.GetComponent<MeshFilter>().sharedMesh;
         localPoints = mesh.vertices.ToList();
+        GameObject.Destroy(sphereGO);
     }
 
-    protected override void Update()
+    protected override void FixedUpdate()
     {
-        base.Update();
-        radius = transform.localScale.x * 0.5f;
-        
+        base.FixedUpdate();
+        Vector3 s = transform.lossyScale;
+        radius = 0.5f * Mathf.Max(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
         aabb.SetAABB(transform.position, Vector3.one * (radius * 2f));
     }
 
     public override void InitAABB()
     {
+        Vector3 s = transform.lossyScale;
+        radius = 0.5f * Mathf.Max(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
         aabb.SetAABB(transform.position, Vector3.one * (radius * 2f));
     }
     

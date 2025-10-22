@@ -17,21 +17,21 @@ public class CustomCollider : MonoBehaviour
         aabb = new AABB();
         UpdatePoints();
     }
-
-    protected virtual void Update()
+    
+    protected virtual void FixedUpdate()
     {
         UpdatePoints();
     }
     #endregion
     
     #region Getter
-    public AABB GetAABB() { return aabb; return gameObject.GetComponentInParent<AABB>(); }
+    public AABB GetAABB() { return aabb; }
     #endregion
 
     public virtual void InitAABB()
     {
         aabb = new AABB();
-        aabb.SetAABB(transform.position, transform.localScale);
+        aabb.SetAABB(transform.position, transform.lossyScale);
     }
 
     public virtual Vector3 GetSupport(Vector3 direction)
