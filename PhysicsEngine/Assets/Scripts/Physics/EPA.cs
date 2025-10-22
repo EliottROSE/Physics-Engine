@@ -157,10 +157,6 @@ public class EPA : MonoBehaviour
                 {
                     edgeMap.Remove(key);
                 }
-                else
-                {
-                    // Duplicate same direction or numerical mismatch: keep first
-                }
             }
             else
             {
@@ -202,71 +198,6 @@ public class EPA : MonoBehaviour
 
             polytope.Add(nf);
         }
-        //// Get all faces visible from the new support point
-        //List<int> visibleFaces = new List<int>();
-        //for (int i = 0; i < polytope.Count; i++)
-        //{
-        //    Triangle face = polytope[i];
-        //    Vector3 normal = face.GetNormal();
-        //    if (Vector3.Dot(normal, newPoint - face.a) > eps)
-        //    {
-        //        visibleFaces.Add(i);
-        //    }
-        //}
-        //
-        //Debug.Log(visibleFaces.Count);
-        //var counts = new Dictionary<(Vector3Int, Vector3Int), int>();
-        //var rawEdge = new Dictionary<(Vector3Int, Vector3Int), (Vector3 A, Vector3 B)>();
-        //
-        //foreach (int idx in visibleFaces)
-        //{
-        //    Triangle f = polytope[idx];
-        //
-        //    var key1 = EdgeKey(f.a, f.b);
-        //    if (!counts.ContainsKey(key1))
-        //    {
-        //        counts[key1] = 1;
-        //        rawEdge[key1] = (f.a, f.b);
-        //    }
-        //    else counts[key1]++;
-        //
-        //    var key2 = EdgeKey(f.b, f.c);
-        //    if (!counts.ContainsKey(key2))
-        //    {
-        //        counts[key2] = 1;
-        //        rawEdge[key2] = (f.b, f.c);
-        //    }
-        //    else counts[key2]++;
-        //
-        //    var key3 = EdgeKey(f.c, f.a);
-        //    if (!counts.ContainsKey(key3))
-        //    {
-        //        counts[key3] = 1;
-        //        rawEdge[key3] = (f.c, f.a);
-        //    }
-        //    else counts[key3]++;
-        //}
-        //
-        //// Remove visible faces
-        //foreach (int idx in visibleFaces.Distinct().OrderByDescending(i => i))
-        //{
-        //    if (idx >= 0 && idx < polytope.Count) polytope.RemoveAt(idx);
-        //}
-        //
-        //// Add new faces
-        //foreach (var kv in counts)
-        //{
-        //    if (kv.Value != 1) continue;
-        //    var (A, B) = rawEdge[kv.Key];
-        //
-        //    Triangle nf = new Triangle(A, B, newPoint);
-        //    Vector3 n = Vector3.Cross(nf.b - nf.a, nf.c - nf.a).normalized;
-        //
-        //    if (Vector3.Dot(n, newPoint) < 0f)
-        //        nf.Set(B, A, newPoint);
-        //
-        //    polytope.Add(nf);
-        //}
     }
     #endregion
 
@@ -294,7 +225,7 @@ public class EPA : MonoBehaviour
 
             if ((supportDist - dist) <= tolerance)
             {
-                EPA.CollisionPair pair = new CollisionPair();
+                CollisionPair pair = new CollisionPair();
                 pair.normal = normal;
                 pair.penetration = Mathf.Max(dist, 0f);
 
