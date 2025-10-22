@@ -11,6 +11,9 @@ public class CustomCollider : MonoBehaviour
     
     protected AABB aabb;
 
+    public event Action<CustomCollider> EventCustomOnEnter;
+    public event Action<CustomCollider> EventCustomOnExit;
+
     #region MonoBehaviour
     protected virtual void Awake()
     {
@@ -22,6 +25,17 @@ public class CustomCollider : MonoBehaviour
     {
         UpdatePoints();
     }
+    
+    public void TriggerEnter(CustomCollider other)
+    {
+        EventCustomOnEnter?.Invoke(other);
+    }
+
+    public void TriggerExit(CustomCollider other)
+    {
+        EventCustomOnExit?.Invoke(other);
+    }
+    
     #endregion
     
     #region Getter

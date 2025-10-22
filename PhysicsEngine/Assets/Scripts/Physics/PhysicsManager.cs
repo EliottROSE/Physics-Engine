@@ -76,9 +76,12 @@ public class PhysicsManager : MonoBehaviour
 
     List<int> availableBoundsTreeIndexes = new List<int>();
     List<int> availableBoundsIndexes = new List<int>();
+    private List<int> availableColliderIndexes = new List<int>();
 
     // Index of the root 
     private int root;
+    
+    //private bool IsDebugMode = false;
     #endregion
 
     #region MonoBehaviour Methods
@@ -122,7 +125,7 @@ public class PhysicsManager : MonoBehaviour
         // TODO : Change to update existing tree instead of rebuild every frame
         boundsTree.Clear();
         bounds.Clear();
-        root = 0;
+        root = -1;
         availableBoundsTreeIndexes.Clear();
         availableBoundsIndexes.Clear();
         BuildAABBTree();
@@ -146,6 +149,70 @@ public class PhysicsManager : MonoBehaviour
 
     #region AABB Tree
 
+    private int AddColliderToTracking(CustomCollider collider)
+    {
+        if (!collider) return -1;
+
+        collider.InitAABB();
+        AABB bound = collider.GetAABB();
+
+        int index;
+        if (availableColliderIndexes.Count > 0)
+        {
+            index = availableColliderIndexes[0];
+            availableColliderIndexes.RemoveAt(0);
+
+            if (index < colliders.Count) colliders[index] = collider;
+            else
+            {
+                colliders.Add(collider);
+                index = colliders.Count - 1;
+            }
+
+            if (index < collidersBounds.Count) collidersBounds[index] = bound;
+            else
+            {
+                collidersBounds.Add(bound);
+            }
+        }
+        else
+        {
+            colliders.Add(collider);
+            collidersBounds.Add(bound);
+            index = colliders.Count - 1;
+        }
+
+        return index;
+    }
+    
+    public void AddCollider(GameObject newColliderObject)
+    {
+        bool foundColliderComponent = newColliderObject.TryGetComponent<CustomCollider>(out CustomCollider collider);
+        if (!colliders.Contains(collider) && foundColliderComponent)
+        {
+            int index = AddColliderToTracking(collider);
+            InsertAABB(collider.GetAABB(), index);
+        }
+    }
+    
+    public void RemoveCollider(GameObject ColliderObject)
+    {
+        bool foundColliderComponent = ColliderObject.TryGetComponent<CustomCollider>(out CustomCollider collider);
+        if (colliders.Contains(collider) && foundColliderComponent)
+        {
+            int idx = colliders.IndexOf(collider);
+            if (idx < 0) return;
+
+            // Retire son AABB de l’arbre
+            AABB bound = collidersBounds[idx];
+            if (bound != null)
+                RemoveAABB(bound);
+
+            colliders[idx] = null;
+            collidersBounds[idx] = null;
+            availableColliderIndexes.Add(idx);
+        }
+    }
     public void BuildAABBTree()
     {
         if (collidersBounds.Count == 0)
@@ -185,57 +252,147 @@ public class PhysicsManager : MonoBehaviour
         //InsertAABB(bound, colliderIndex);
     }
 
+    //public void InsertAABB(AABB bound, int colliderIndex)
+    //{
+    //    // If the tree is empty the first bound become the root
+    //    if (boundsTree.Count == 0 || root == -1)
+    //    {
+    //        Node node = new Node(-1, -1, -1, true, 0, colliderIndex);
+    //        int nodeIndex = AddAndReturnNodeIndex(node);
+    //        AddBound(bound);
+    //        root = nodeIndex;
+    //        return;
+    //    }
+    //
+    //    Node currentNode = boundsTree[root];
+    //    bool isLeft = true;
+    //    while (!currentNode.isLeaf)
+    //    {
+    //        float leftValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.leftIndex)], bound);
+    //        float rightValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.rightIndex)], bound);
+    //
+    //        if (leftValue < rightValue)
+    //        {
+    //            currentNode = boundsTree[currentNode.leftIndex];
+    //        }
+    //        else
+    //        {
+    //            currentNode = boundsTree[currentNode.rightIndex];
+    //            isLeft = false;
+    //        }
+    //    } //
+    //
+    //    // New parent abstract detection zone
+    //    AABB newParentAABB = new AABB();
+    //    newParentAABB.SetAABB(bounds[currentNode.AABBIndex], bound);
+    //    int newParentAABBIndex = AddAndReturnBoundIndex(newParentAABB);
+    //
+    //    int newLeftIndex = 0;
+    //
+    //    // Special case if process root
+    //    if (currentNode.parentIndex == -1)
+    //    {
+    //        newLeftIndex = root;
+    //    }
+    //    else
+    //    {
+    //        if (isLeft)
+    //            newLeftIndex = boundsTree[currentNode.parentIndex].leftIndex;
+    //        else
+    //            newLeftIndex = boundsTree[currentNode.parentIndex].rightIndex;
+    //    }
+    //
+    //    // left is currentNode
+    //    Node newParentNode = new Node(currentNode.parentIndex, newLeftIndex, -1, false, newParentAABBIndex, -1);
+    //    int newParentNodeIndex = AddAndReturnNodeIndex(newParentNode);
+    //
+    //    if (currentNode.parentIndex == -1)
+    //    {
+    //        root = newParentNodeIndex;
+    //    }
+    //    else
+    //    {
+    //        if (isLeft)
+    //            boundsTree[currentNode.parentIndex].leftIndex = newParentNodeIndex;
+    //        else
+    //            boundsTree[currentNode.parentIndex].rightIndex = newParentNodeIndex;
+    //    }
+    //
+    //    // Change currentNode informations
+    //    currentNode.parentIndex = newParentNodeIndex;
+    //
+    //    // new bound node
+    //    int newBoundIndex = AddAndReturnBoundIndex(bound);
+    //    Node newBoundNode = new Node(newParentNodeIndex, -1, -1, true, newBoundIndex, colliderIndex);
+    //    int newBoundNodeIndex = AddAndReturnNodeIndex(newBoundNode);
+    //    boundsTree[newParentNodeIndex].rightIndex = newBoundNodeIndex;
+    //
+    //    UpdateFromChildren(newParentNodeIndex);
+    //}
     public void InsertAABB(AABB bound, int colliderIndex)
     {
-        // If the tree is empty the first bound become the root
-        if (boundsTree.Count == 0)
+        if (bound == null) return;
+
+        // Si l’arbre est vide
+        if (boundsTree.Count == 0 || root == -1)
         {
-            Node node = new Node(-1, -1, -1, true, 0, colliderIndex);
+            int leafBoundIndex = AddAndReturnBoundIndex(bound);
+            Node node = new Node(-1, -1, -1, true, leafBoundIndex, colliderIndex);
             int nodeIndex = AddAndReturnNodeIndex(node);
-            AddBound(bound);
             root = nodeIndex;
             return;
         }
 
         Node currentNode = boundsTree[root];
         bool isLeft = true;
-        while (!currentNode.isLeaf)
-        {
-            float leftValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.leftIndex)], bound);
-            float rightValue = AABB.GetUnionCost(bounds[GetBoundIndexFromTree(currentNode.rightIndex)], bound);
 
-            if (leftValue < rightValue)
+        // Descend jusqu'à une feuille
+        while (currentNode != null && !currentNode.isLeaf)
+        {
+            int leftBI = GetBoundIndexFromTree(currentNode.leftIndex);
+            int rightBI = GetBoundIndexFromTree(currentNode.rightIndex);
+            AABB leftB = (leftBI >= 0 && leftBI < bounds.Count) ? bounds[leftBI] : null;
+            AABB rightB = (rightBI >= 0 && rightBI < bounds.Count) ? bounds[rightBI] : null;
+
+            float leftValue = leftB != null ? AABB.GetUnionCost(leftB, bound) : float.PositiveInfinity;
+            float rightValue = rightB != null ? AABB.GetUnionCost(rightB, bound) : float.PositiveInfinity;
+
+            if (leftValue <= rightValue)
             {
+                isLeft = true;
                 currentNode = boundsTree[currentNode.leftIndex];
             }
             else
             {
-                currentNode = boundsTree[currentNode.rightIndex];
                 isLeft = false;
+                currentNode = boundsTree[currentNode.rightIndex];
             }
-        } //
+        }
 
-        // New parent abstract detection zone
+        // Sécurité
+        if (currentNode == null) return;
+
+        // Nouveau parent
         AABB newParentAABB = new AABB();
-        newParentAABB.SetAABB(bounds[currentNode.AABBIndex], bound);
+        if (currentNode.AABBIndex < 0 || currentNode.AABBIndex >= bounds.Count) return;
+        var currentBound = bounds[currentNode.AABBIndex];
+        if (currentBound == null) return;
+
+        newParentAABB.SetAABB(currentBound, bound);
         int newParentAABBIndex = AddAndReturnBoundIndex(newParentAABB);
 
-        int newLeftIndex = 0;
-
-        // Special case if process root
+        int newLeftIndex;
         if (currentNode.parentIndex == -1)
         {
             newLeftIndex = root;
         }
         else
         {
-            if (isLeft)
-                newLeftIndex = boundsTree[currentNode.parentIndex].leftIndex;
-            else
-                newLeftIndex = boundsTree[currentNode.parentIndex].rightIndex;
+            newLeftIndex = isLeft
+                ? boundsTree[currentNode.parentIndex].leftIndex
+                : boundsTree[currentNode.parentIndex].rightIndex;
         }
 
-        // left is currentNode
         Node newParentNode = new Node(currentNode.parentIndex, newLeftIndex, -1, false, newParentAABBIndex, -1);
         int newParentNodeIndex = AddAndReturnNodeIndex(newParentNode);
 
@@ -251,10 +408,8 @@ public class PhysicsManager : MonoBehaviour
                 boundsTree[currentNode.parentIndex].rightIndex = newParentNodeIndex;
         }
 
-        // Change currentNode informations
         currentNode.parentIndex = newParentNodeIndex;
 
-        // new bound node
         int newBoundIndex = AddAndReturnBoundIndex(bound);
         Node newBoundNode = new Node(newParentNodeIndex, -1, -1, true, newBoundIndex, colliderIndex);
         int newBoundNodeIndex = AddAndReturnNodeIndex(newBoundNode);
@@ -263,12 +418,92 @@ public class PhysicsManager : MonoBehaviour
         UpdateFromChildren(newParentNodeIndex);
     }
 
+    //public void RemoveAABB(AABB bound)
+    //{
+    //    if (bound == null) return;
+    //
+    //    int nodeIndex = -1;
+    //    bool isLeft = true;
+    //
+    //    for (int i = 0; i < boundsTree.Count; i++)
+    //    {
+    //        Node node = boundsTree[i];
+    //        if (node == null || !node.isLeaf) continue;
+    //        int aabbIdx = node.AABBIndex;
+    //        if (aabbIdx >= 0 && aabbIdx < bounds.Count && bounds[aabbIdx] == bound)
+    //        {
+    //            nodeIndex = i;
+    //            if (node.parentIndex != -1)
+    //            {
+    //                Node parent = boundsTree[node.parentIndex];
+    //                if (parent != null && parent.rightIndex == nodeIndex)
+    //                    isLeft = false;
+    //            }
+    //
+    //            break;
+    //        }
+    //    }
+    //
+    //    if (nodeIndex == -1) return;
+    //
+    //    Node leafNode = boundsTree[nodeIndex];
+    //    int oldParentIndex = leafNode.parentIndex;
+    //
+    //    if (oldParentIndex == -1)
+    //    {
+    //        boundsTree[nodeIndex] = null;
+    //        availableBoundsTreeIndexes.Add(nodeIndex);
+    //        root = -1;
+    //        return;
+    //    }
+    //
+    //    Node oldParent = boundsTree[oldParentIndex];
+    //    if (oldParent == null) return;
+    //
+    //    int siblingIndex = (oldParent.leftIndex == nodeIndex) ? oldParent.rightIndex : oldParent.leftIndex;
+    //    if (siblingIndex < 0 || siblingIndex >= boundsTree.Count) return;
+    //    Node sibling = boundsTree[siblingIndex];
+    //    if (sibling == null) return;
+    //
+    //    sibling.parentIndex = oldParent.parentIndex;
+    //
+    //    if (oldParent.parentIndex == -1)
+    //    {
+    //        root = siblingIndex;
+    //    }
+    //    else
+    //    {
+    //        Node grandParent = boundsTree[oldParent.parentIndex];
+    //        if (grandParent != null)
+    //        {
+    //            if (grandParent.leftIndex == oldParentIndex)
+    //                grandParent.leftIndex = siblingIndex;
+    //            else
+    //                grandParent.rightIndex = siblingIndex;
+    //        }
+    //    }
+    //
+    //    if (oldParent.AABBIndex >= 0 && oldParent.AABBIndex < bounds.Count)
+    //    {
+    //        bounds[oldParent.AABBIndex] = null;
+    //        availableBoundsIndexes.Add(oldParent.AABBIndex);
+    //    }
+    //
+    //    boundsTree[oldParentIndex] = null;
+    //    availableBoundsTreeIndexes.Add(oldParentIndex);
+    //
+    //    boundsTree[nodeIndex] = null;
+    //    availableBoundsTreeIndexes.Add(nodeIndex);
+    //
+    //    if (sibling.parentIndex != -1)
+    //        UpdateFromChildren(sibling.parentIndex);
+    //}
+    //
     public void RemoveAABB(AABB bound)
     {
         if (bound == null) return;
 
         int nodeIndex = -1;
-        bool isLeft = true;
 
         for (int i = 0; i < boundsTree.Count; i++)
         {
@@ -278,13 +513,6 @@ public class PhysicsManager : MonoBehaviour
             if (aabbIdx >= 0 && aabbIdx < bounds.Count && bounds[aabbIdx] == bound)
             {
                 nodeIndex = i;
-                if (node.parentIndex != -1)
-                {
-                    Node parent = boundsTree[node.parentIndex];
-                    if (parent != null && parent.rightIndex == nodeIndex)
-                        isLeft = false;
-                }
-
                 break;
             }
         }
@@ -294,8 +522,16 @@ public class PhysicsManager : MonoBehaviour
         Node leafNode = boundsTree[nodeIndex];
         int oldParentIndex = leafNode.parentIndex;
 
+        // Si c'était la racine
         if (oldParentIndex == -1)
         {
+            // Libère la bound du leaf
+            if (leafNode.AABBIndex >= 0 && leafNode.AABBIndex < bounds.Count)
+            {
+                bounds[leafNode.AABBIndex] = null;
+                availableBoundsIndexes.Add(leafNode.AABBIndex);
+            }
+
             boundsTree[nodeIndex] = null;
             availableBoundsTreeIndexes.Add(nodeIndex);
             root = -1;
@@ -328,10 +564,16 @@ public class PhysicsManager : MonoBehaviour
             }
         }
 
+        // Libère les AABB du parent et de la feuille
         if (oldParent.AABBIndex >= 0 && oldParent.AABBIndex < bounds.Count)
         {
             bounds[oldParent.AABBIndex] = null;
             availableBoundsIndexes.Add(oldParent.AABBIndex);
+        }
+        if (leafNode.AABBIndex >= 0 && leafNode.AABBIndex < bounds.Count)
+        {
+            bounds[leafNode.AABBIndex] = null;
+            availableBoundsIndexes.Add(leafNode.AABBIndex);
         }
 
         boundsTree[oldParentIndex] = null;
@@ -343,7 +585,7 @@ public class PhysicsManager : MonoBehaviour
         if (sibling.parentIndex != -1)
             UpdateFromChildren(sibling.parentIndex);
     }
-
+    
     private void UpdateFromChildren(int nodeIndex)
     {
         AABB leftBound = bounds[GetBoundIndexFromTree(boundsTree[nodeIndex].leftIndex)];
@@ -447,6 +689,7 @@ public class PhysicsManager : MonoBehaviour
                 EPA.CollisionPair pair = EPA.ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);
                 if (pair.point != Vector3.zero && pair.normal != Vector3.zero && pair.penetration != 0f)
                 {
+                    colliderB.TriggerEnter(colliderA);
                     collisionPairs.Add(pair);
                 }
             }
