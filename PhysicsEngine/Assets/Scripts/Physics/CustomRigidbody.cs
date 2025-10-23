@@ -216,6 +216,8 @@ public class CustomRigidbody : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (isMoving)
+            PhysicsManager.Instance.UpdateTree(collider);
         isMoving = false;
     }
 }

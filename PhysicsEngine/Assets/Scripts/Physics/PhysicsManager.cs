@@ -605,6 +605,31 @@ public class PhysicsManager : MonoBehaviour
 
             Vector3 normal = pair.normal.sqrMagnitude > eps ? pair.normal.normalized : Vector3.up;
             Vector3 contact = pair.point;
+            
+            // DEBUG VISUALS -------------------------------------------------
+            float drawDuration = Time.fixedDeltaTime; // visible pour un tick FixedUpdate
+            float normalLength = 0.5f;
+            float velocityScale = 0.1f;
+            float crossSize = 0.05f;
+
+            // normale (vert)
+            Debug.DrawRay(contact, normal * normalLength, Color.green, drawDuration);
+            // normale inverse (rouge) pour vérifier orientation
+            Debug.DrawRay(contact, -normal * (normalLength * 0.15f), Color.red, drawDuration);
+            // vélocité relative au point de contact (jaune)
+            Vector3 raTmp = contact - body1.Center;
+            Vector3 rbTmp = contact - body2.Center;
+            Vector3 v1pTmp = body1.Velocity + Vector3.Cross(body1.AngularVelocity, raTmp);
+            Vector3 v2pTmp = body2.Velocity + Vector3.Cross(body2.AngularVelocity, rbTmp);
+            Vector3 relativeVelocityTmp = v2pTmp - v1pTmp;
+            Debug.DrawRay(contact, relativeVelocityTmp * velocityScale, Color.yellow, drawDuration);
+            // petite croix pour marquer le point de contact (cyan)
+            Debug.DrawLine(contact + Vector3.up * crossSize, contact - Vector3.up * crossSize, Color.cyan, drawDuration);
+            Debug.DrawLine(contact + Vector3.right * crossSize, contact - Vector3.right * crossSize, Color.cyan, drawDuration);
+            Debug.DrawLine(contact + Vector3.forward * crossSize, contact - Vector3.forward * crossSize, Color.cyan, drawDuration);
+            // ---------------------------------------------------------------
+            
+            Debug.Log(contact);
 
             Vector3 ab = body2.Center - body1.Center;
             if (Vector3.Dot(ab, normal) <= 0f)
@@ -644,7 +669,9 @@ public class PhysicsManager : MonoBehaviour
             Vector3 termB = Vector3.Cross(invInertia2.MultiplyVector(rbCrossN), rb);
             float angularFactor = Mathf.Max(0f, Vector3.Dot(termA + termB, normal));
 
-            float denom = totalInvMass + angularFactor;
+            Vector3 momentum1 = invInertia1.MultiplyVector(Vector3.Cross(ra, normal));
+            Vector3 momentum2 = invInertia1.MultiplyVector(Vector3.Cross(rb, normal));
+            float denom = totalInvMass + Vector3.Dot(Vector3.Cross(momentum1, ra), normal) + Vector3.Dot(Vector3.Cross(momentum2, rb), normal);
 
             float impulseMagnitude = -(1f + restitution) * velocityAlongNormal / denom;
             if (!float.IsFinite(impulseMagnitude))
@@ -658,8 +685,9 @@ public class PhysicsManager : MonoBehaviour
 
             Vector3 angImp1 = invInertia1.MultiplyVector(Vector3.Cross(ra, -impulse));
             Vector3 angImp2 = invInertia2.MultiplyVector(Vector3.Cross(rb,  impulse));
-            body1.AddAngularImpulse(angImp1);
-            body2.AddAngularImpulse(angImp2);
+            
+            body1.AddAngularImpulse(-impulseMagnitude * momentum1);
+            body2.AddAngularImpulse(impulseMagnitude * momentum2);
 
             // Friction impulse
             Vector3 tangent = relativeVelocity - Vector3.Dot(relativeVelocity, normal) * normal;
@@ -686,14 +714,14 @@ public class PhysicsManager : MonoBehaviour
                         float maxStatic = Mathf.Abs(impulseMagnitude) * muS;
 
                         Vector3 jtVec = (Mathf.Abs(jT) < maxStatic)
-                            ? jT * tangent                                   // statique
-                            : -Mathf.Sign(velocityAlongTangent) * muD * Mathf.Abs(impulseMagnitude) * tangent; // dynamique
+                            ? jT * tangent                                   // static
+                            : -Mathf.Sign(velocityAlongTangent) * muD * Mathf.Abs(impulseMagnitude) * tangent; // dynamic
 
-                        // Linéaire
+                        // linear
                         body1.AddImpulse(-jtVec);
                         body2.AddImpulse( jtVec);
 
-                        // Angulaire
+                        // angular
                         Vector3 angF1 = invInertia1.MultiplyVector(Vector3.Cross(ra, -jtVec));
                         Vector3 angF2 = invInertia2.MultiplyVector(Vector3.Cross(rb,  jtVec));
                         body1.AddAngularImpulse(angF1);
