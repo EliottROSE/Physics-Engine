@@ -151,6 +151,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e1475b270db6914faff3b83e5131807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sleepLinearThreshold: 0.01
+  sleepAngularThreshold: 0.01
+  sleepTime: 1
   bodyType: 2
   mass: 1
   airDensity: 1.225
@@ -413,6 +416,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e1475b270db6914faff3b83e5131807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sleepLinearThreshold: 0.1
+  sleepAngularThreshold: 0.1
+  sleepTime: 1
   bodyType: 2
   mass: 15.21
   airDensity: 1.225
@@ -536,6 +542,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e1475b270db6914faff3b83e5131807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sleepLinearThreshold: 0.1
+  sleepAngularThreshold: 0.1
+  sleepTime: 1
   bodyType: 2
   mass: 10
   airDensity: 1.225
@@ -659,6 +668,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e1475b270db6914faff3b83e5131807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sleepLinearThreshold: 0.01
+  sleepAngularThreshold: 0.01
+  sleepTime: 1
   bodyType: 0
   mass: 13.2
   airDensity: 1.225
@@ -745,7 +757,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 10.447, y: 1, z: 11.899}
+  m_LocalScale: {x: 65.54238, y: 6.2738, z: 74.65195}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}

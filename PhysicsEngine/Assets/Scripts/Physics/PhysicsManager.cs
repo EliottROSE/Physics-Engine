@@ -123,7 +123,8 @@ public class PhysicsManager : MonoBehaviour
     void FixedUpdate()
     {
         List<EPA.CollisionPair> pairs = DetectCollisions();
-        ResolveCollisions(pairs);
+        for (int i = 0; i < 10; i++)
+            ResolveCollisions(pairs);
     }
     #endregion
 
@@ -645,7 +646,7 @@ public class PhysicsManager : MonoBehaviour
             float angularFactor = Mathf.Max(0f, Vector3.Dot(termA + termB, normal));
 
             Vector3 momentum1 = invInertia1.MultiplyVector(Vector3.Cross(ra, normal));
-            Vector3 momentum2 = invInertia1.MultiplyVector(Vector3.Cross(rb, normal));
+            Vector3 momentum2 = invInertia2.MultiplyVector(Vector3.Cross(rb, normal));
             float denom = totalInvMass + Vector3.Dot(Vector3.Cross(momentum1, ra), normal) + Vector3.Dot(Vector3.Cross(momentum2, rb), normal);
 
             float impulseMagnitude = -(1f + restitution) * velocityAlongNormal / denom;
@@ -683,6 +684,8 @@ public class PhysicsManager : MonoBehaviour
                     if (denomT > eps)
                     {
                         float jT = -velocityAlongTangent / denomT;
+                        if (Mathf.Abs(jT) < 1e-4f)
+                            jT = 0f;
 
                         float muS = Mathf.Sqrt(body1.StaticFriction * body2.StaticFriction);
                         float muD = Mathf.Sqrt(body1.DynamicFriction * body2.DynamicFriction);
@@ -703,6 +706,20 @@ public class PhysicsManager : MonoBehaviour
                         body2.AddAngularImpulse(angF2);
                     }
                 }
+            }
+            
+            // --- Rolling / spinning resistance ---
+            float w1 = body1.AngularVelocity.magnitude;
+            float w2 = body2.AngularVelocity.magnitude;
+            if (w1 > 1e-4f)
+            {
+                Vector3 rollingTorque = -body1.AngularVelocity.normalized * (w1 * w1) * body1.DynamicFriction * 0.05f;
+                body1.AddAngularImpulse(rollingTorque * Time.fixedDeltaTime);
+            }
+            if (w2 > 1e-4f)
+            {
+                Vector3 rollingTorque = -body2.AngularVelocity.normalized * (w2 * w2) * body2.DynamicFriction * 0.05f;
+                body2.AddAngularImpulse(rollingTorque * Time.fixedDeltaTime);
             }
 
             // Positional correction

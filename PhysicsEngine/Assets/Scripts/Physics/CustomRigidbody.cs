@@ -60,6 +60,8 @@ public class CustomRigidbody : MonoBehaviour
     public void SetVelocity(Vector3 velocity) { this.velocity = velocity; }
     public void AddVelocity(Vector3 deltaV) { velocity += deltaV; }
     
+    public void SetAngularVelocity(Vector3 velocity) { this.angularVelocity = velocity; }
+    
     public void MoveCenter(Vector3 move) { transform.position += move; }
     
     public void SetInertiaTensor(Vector3 inertia)
@@ -150,11 +152,15 @@ public class CustomRigidbody : MonoBehaviour
     
     private void ApplyAngularDampingAndClamp(float dt)
     {
-        angularVelocity *= 1f / (1f + Mathf.Max(0f, angularDamping) * dt);
+        float dampingFactor = Mathf.Exp(-angularDamping * dt);
+        angularVelocity *= dampingFactor;
+
+        if (angularVelocity.magnitude < 1e-3f)
+            angularVelocity = Vector3.zero;
 
         float w = angularVelocity.magnitude;
         if (w > maxAngularSpeed && maxAngularSpeed > 0f)
-            angularVelocity = angularVelocity * (maxAngularSpeed / w);
+            angularVelocity *= maxAngularSpeed / w;
     }
 
     private void RecomputeInertiaFromCollider()
