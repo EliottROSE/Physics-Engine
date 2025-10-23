@@ -123,6 +123,31 @@ public class CustomRigidbody : MonoBehaviour
         velocity += dragAccel * Time.fixedDeltaTime;
     }
     
+    private void ApplyRotationalAirResistance()
+    {
+        if (angularVelocity.sqrMagnitude < 1e-6f)
+            return;
+
+        float rotationalDragCoefficient = collider.GetRotationalDragCoefficient();
+
+        float area = collider.GetCrossSectionalArea(angularVelocity.normalized);
+        float radius = Mathf.Max(transform.lossyScale.x, transform.lossyScale.y, transform.lossyScale.z) * 0.5f;
+
+        float omega = angularVelocity.magnitude;
+
+        Vector3 torque = -0.5f * airDensity * rotationalDragCoefficient * area * radius * radius * omega * angularVelocity.normalized;
+
+        // Δω = I⁻¹ * τ * dt
+        Matrix4x4 invInertia = GetInverseInertiaTensorWorld();
+        Vector3 angularAccel = new Vector3(
+            invInertia.m00 * torque.x + invInertia.m01 * torque.y + invInertia.m02 * torque.z,
+            invInertia.m10 * torque.x + invInertia.m11 * torque.y + invInertia.m12 * torque.z,
+            invInertia.m20 * torque.x + invInertia.m21 * torque.y + invInertia.m22 * torque.z
+        );
+
+        angularVelocity += angularAccel * Time.fixedDeltaTime;
+    }
+    
     private void ApplyAngularDampingAndClamp(float dt)
     {
         angularVelocity *= 1f / (1f + Mathf.Max(0f, angularDamping) * dt);
@@ -198,6 +223,7 @@ public class CustomRigidbody : MonoBehaviour
         {
             velocity.y += GRAVITYCONST * Time.fixedDeltaTime;
             ApplyAirResistance();
+            ApplyRotationalAirResistance();
             ApplyAngularDampingAndClamp(Time.fixedDeltaTime);
             isMoving = true;
         }

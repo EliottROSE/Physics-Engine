@@ -84,6 +84,11 @@ public class CustomCollider : MonoBehaviour
         }
     }
     
+    public virtual float GetRotationalDragCoefficient()
+    {
+        return 0.1f * GetDragCoefficient();
+    }
+    
     public virtual float GetDragCoefficient() { return 1.0f; } // Placeholder value
     public virtual float GetCrossSectionalArea(Vector3 direction) { return 1.0f; } // Placeholder value
 }

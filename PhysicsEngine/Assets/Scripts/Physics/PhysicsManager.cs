@@ -605,31 +605,6 @@ public class PhysicsManager : MonoBehaviour
 
             Vector3 normal = pair.normal.sqrMagnitude > eps ? pair.normal.normalized : Vector3.up;
             Vector3 contact = pair.point;
-            
-            // DEBUG VISUALS -------------------------------------------------
-            float drawDuration = Time.fixedDeltaTime; // visible pour un tick FixedUpdate
-            float normalLength = 0.5f;
-            float velocityScale = 0.1f;
-            float crossSize = 0.05f;
-
-            // normale (vert)
-            Debug.DrawRay(contact, normal * normalLength, Color.green, drawDuration);
-            // normale inverse (rouge) pour vérifier orientation
-            Debug.DrawRay(contact, -normal * (normalLength * 0.15f), Color.red, drawDuration);
-            // vélocité relative au point de contact (jaune)
-            Vector3 raTmp = contact - body1.Center;
-            Vector3 rbTmp = contact - body2.Center;
-            Vector3 v1pTmp = body1.Velocity + Vector3.Cross(body1.AngularVelocity, raTmp);
-            Vector3 v2pTmp = body2.Velocity + Vector3.Cross(body2.AngularVelocity, rbTmp);
-            Vector3 relativeVelocityTmp = v2pTmp - v1pTmp;
-            Debug.DrawRay(contact, relativeVelocityTmp * velocityScale, Color.yellow, drawDuration);
-            // petite croix pour marquer le point de contact (cyan)
-            Debug.DrawLine(contact + Vector3.up * crossSize, contact - Vector3.up * crossSize, Color.cyan, drawDuration);
-            Debug.DrawLine(contact + Vector3.right * crossSize, contact - Vector3.right * crossSize, Color.cyan, drawDuration);
-            Debug.DrawLine(contact + Vector3.forward * crossSize, contact - Vector3.forward * crossSize, Color.cyan, drawDuration);
-            // ---------------------------------------------------------------
-            
-            Debug.Log(contact);
 
             Vector3 ab = body2.Center - body1.Center;
             if (Vector3.Dot(ab, normal) <= 0f)
