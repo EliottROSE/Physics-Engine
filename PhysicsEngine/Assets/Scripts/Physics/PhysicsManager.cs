@@ -749,6 +749,13 @@ public class PhysicsManager : MonoBehaviour
                 if (body2.Type == CustomRigidbody.BodyType.Dynamic)
                     body2.MoveCenter(correction * invMass2);
             }
+            
+            // --- Clamp tiny linear velocities ---
+            const float linZeroThreshold = 0.01f;
+            if (body1.Velocity.magnitude < linZeroThreshold)
+                body1.SetVelocity(Vector3.zero);
+            if (body2.Velocity.magnitude < linZeroThreshold)
+                body2.SetVelocity(Vector3.zero);
         }
     }
     #endregion
