@@ -25,6 +25,7 @@ public class GameManager : MonoBehaviour
     
     
     [SerializeField] private Ball BallPrefab;
+    [SerializeField] private Ball CubePrefab;
     [SerializeField] private GameObject spawnPoint;
 
     [SerializeField] private float Money = 100f;
@@ -67,6 +68,24 @@ public class GameManager : MonoBehaviour
         
         Money -= CurrentMoneyPerBall;
         SetMoneyText();
+    }
+    
+    public void OnSpawnCubeButtonClick()
+    {
+        if (Money < CurrentMoneyPerBall)
+            return;
+        
+        Ball newBall = Instantiate(CubePrefab, spawnPoint.transform.position, Quaternion.identity);
+        newBall.SetBallValue(CurrentMoneyPerBall);
+        PhysicsManager.Instance.AddCollider(newBall.gameObject);
+        
+        Money -= CurrentMoneyPerBall;
+        SetMoneyText();
+    }
+    
+    public void OnRestartButtonClick()
+    {
+        UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
     }
     
     public void OnAddMoneyButtonClick()
