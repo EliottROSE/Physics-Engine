@@ -416,7 +416,7 @@ MonoBehaviour:
   bodyType: 2
   mass: 15.21
   airDensity: 1.225
-  restitution: 1
+  restitution: 0.55
   staticFriction: 0.6
   dynamicFriction: 0.4
   autoComputeInertia: 1
@@ -498,7 +498,7 @@ Transform:
   m_GameObject: {fileID: 1733732717}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.68, y: 3.89, z: 0.42}
+  m_LocalPosition: {x: -0.03, y: 3.95, z: 0.42}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

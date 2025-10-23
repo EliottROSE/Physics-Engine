@@ -503,7 +503,7 @@ public class PhysicsManager : MonoBehaviour
             CustomCollider colliderA = colliders[boundsTree[a].ColliderIndex];
             CustomCollider colliderB = colliders[boundsTree[b].ColliderIndex];
 
-            List<Vector3> outGJKPoints = new List<Vector3>();
+            List<EPA.SupportPoint> outGJKPoints = new List<EPA.SupportPoint>();
             if (GJK.CheckGJKCollision(colliderA, colliderB, 64, ref outGJKPoints))
             {
                 EPA.CollisionPair pair = EPA.ExpendingPolytopeAlgorithm(colliderA, colliderB, outGJKPoints, 64);

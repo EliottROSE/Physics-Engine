@@ -3,12 +3,12 @@ using UnityEngine;
 
 public class GJK : MonoBehaviour
 {
-    public static Vector3 GetSupport(CustomCollider collider1, CustomCollider collider2, Vector3 direction)
+    public static EPA.SupportPoint GetSupport(CustomCollider collider1, CustomCollider collider2, Vector3 direction)
     {
-        return collider1.GetSupport(direction) - collider2.GetSupport(-direction);
+        return EPA.MakeSupport(collider1, collider2, direction);
     }
     
-    public static bool CheckGJKCollision(CustomCollider collider1, CustomCollider collider2, uint maxIterations, ref List<Vector3> outGJKPoints)
+    public static bool CheckGJKCollision(CustomCollider collider1, CustomCollider collider2, uint maxIterations, ref List<EPA.SupportPoint> outGJKPoints)
     {
         float colliderScaleMagnitude = Mathf.Max(
             collider1.transform.lossyScale.magnitude,
@@ -21,15 +21,15 @@ public class GJK : MonoBehaviour
         if (direction == Vector3.zero)
             direction = Vector3.right;
 
-        List<Vector3> simplex = new List<Vector3> { GetSupport(collider1, collider2, direction) };
+        List<EPA.SupportPoint> simplex = new List<EPA.SupportPoint> { GetSupport(collider1, collider2, direction) };
 
-        direction = -simplex[0];
+        direction = -simplex[0].minkowski;
 
         for (int iter = 0; iter < maxIterations; iter++)
         {
-            Vector3 newPoint = GetSupport(collider1, collider2, direction);
+            EPA.SupportPoint newPoint = GetSupport(collider1, collider2, direction);
 
-            if (Vector3.Dot(newPoint, direction) <= eps)
+            if (Vector3.Dot(newPoint.minkowski, direction) <= eps)
                 return false;
 
             simplex.Add(newPoint);
@@ -45,15 +45,15 @@ public class GJK : MonoBehaviour
     }
 
 
-    private static bool ContainsOrigin(List<Vector3> simplex, ref Vector3 direction, float eps)
+    private static bool ContainsOrigin(List<EPA.SupportPoint> simplex, ref Vector3 direction, float eps)
     {
         if (simplex.Count == 2)
         {
-            Vector3 a = simplex[1];
-            Vector3 b = simplex[0];
+            EPA.SupportPoint a = simplex[1];
+            EPA.SupportPoint b = simplex[0];
 
-            Vector3 ab = b - a;
-            Vector3 ao = -a;
+            Vector3 ab = b.minkowski - a.minkowski;
+            Vector3 ao = -a.minkowski;
 
             if (Vector3.Dot(ab, ao) > eps)
             {
@@ -67,13 +67,13 @@ public class GJK : MonoBehaviour
         }
         else if (simplex.Count == 3)
         {
-            Vector3 a = simplex[2];
-            Vector3 b = simplex[1];
-            Vector3 c = simplex[0];
+            EPA.SupportPoint a = simplex[2];
+            EPA.SupportPoint b = simplex[1];
+            EPA.SupportPoint c = simplex[0];
 
-            Vector3 ab = b - a;
-            Vector3 ac = c - a;
-            Vector3 ao = -a;
+            Vector3 ab = b.minkowski - a.minkowski;
+            Vector3 ac = c.minkowski - a.minkowski;
+            Vector3 ao = -a.minkowski;
 
             Vector3 abc = Vector3.Cross(ab, ac);
 
@@ -122,16 +122,16 @@ public class GJK : MonoBehaviour
         }
         else if (simplex.Count == 4)
         {
-            Vector3 a = simplex[3];
-            Vector3 b = simplex[2];
-            Vector3 c = simplex[1];
-            Vector3 d = simplex[0];
+            EPA.SupportPoint a = simplex[3];
+            EPA.SupportPoint b = simplex[2];
+            EPA.SupportPoint c = simplex[1];
+            EPA.SupportPoint d = simplex[0];
 
-            Vector3 ao = -a;
+            Vector3 ao = -a.minkowski;
 
-            Vector3 abc = Vector3.Cross(b - a, c - a);
-            Vector3 acd = Vector3.Cross(c - a, d - a);
-            Vector3 adb = Vector3.Cross(d - a, b - a);
+            Vector3 abc = Vector3.Cross(b.minkowski - a.minkowski, c.minkowski - a.minkowski);
+            Vector3 acd = Vector3.Cross(c.minkowski - a.minkowski, d.minkowski - a.minkowski);
+            Vector3 adb = Vector3.Cross(d.minkowski - a.minkowski, b.minkowski - a.minkowski);
 
             if (Vector3.Dot(abc, ao) > eps)
             {
