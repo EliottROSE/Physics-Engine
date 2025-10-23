@@ -151,9 +151,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e1475b270db6914faff3b83e5131807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sleepLinearThreshold: 0.01
-  sleepAngularThreshold: 0.01
-  sleepTime: 1
   bodyType: 2
   mass: 1
   airDensity: 1.225
@@ -366,9 +363,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9450ba6dce1b7c843ab7dfa0288299c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  penetrationPercentage: 0.8
+  penetrationPercentage: 0.2
   penetrationAllowance: 0.001
-  bounceThreshold: 0.001
+  bounceThreshold: 2
 --- !u!4 &1451225617
 Transform:
   m_ObjectHideFlags: 0
@@ -416,9 +413,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e1475b270db6914faff3b83e5131807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sleepLinearThreshold: 0.1
-  sleepAngularThreshold: 0.1
-  sleepTime: 1
   bodyType: 2
   mass: 15.21
   airDensity: 1.225
@@ -542,9 +536,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e1475b270db6914faff3b83e5131807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sleepLinearThreshold: 0.1
-  sleepAngularThreshold: 0.1
-  sleepTime: 1
   bodyType: 2
   mass: 10
   airDensity: 1.225
@@ -668,9 +659,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e1475b270db6914faff3b83e5131807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sleepLinearThreshold: 0.01
-  sleepAngularThreshold: 0.01
-  sleepTime: 1
   bodyType: 0
   mass: 13.2
   airDensity: 1.225
