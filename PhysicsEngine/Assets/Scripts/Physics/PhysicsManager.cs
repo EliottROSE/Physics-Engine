@@ -501,6 +501,11 @@ public class PhysicsManager : MonoBehaviour
 
         foreach ((int a, int b) in broadPhasePairs)
         {
+            if (boundsTree != null && (boundsTree[a] == null || boundsTree[b] == null))
+            {
+                continue;
+            }
+            
             CustomCollider colliderA = colliders[boundsTree[a].ColliderIndex];
             CustomCollider colliderB = colliders[boundsTree[b].ColliderIndex];
 
