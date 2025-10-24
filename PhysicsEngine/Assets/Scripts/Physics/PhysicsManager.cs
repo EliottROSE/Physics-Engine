@@ -81,10 +81,21 @@ public class PhysicsManager : MonoBehaviour
     // Index of the root 
     private int root;
     
+    private List<Vector3> localSpherePoints = new List<Vector3>();
+    public List<Vector3> LocalSpherePoints => localSpherePoints;
+    
     //private bool IsDebugMode = false;
     #endregion
 
     #region MonoBehaviour Methods
+
+    private void Awake()
+    {
+        localSpherePoints = GenerateSpherePoints(64);
+        for (int i = 0; i < localSpherePoints.Count; i++)
+            localSpherePoints[i] *= 0.5f;
+    }
+
     void Start()
     {
         colliders = FindObjectsOfType<CustomCollider>().ToList();
@@ -125,6 +136,24 @@ public class PhysicsManager : MonoBehaviour
         List<EPA.CollisionPair> pairs = DetectCollisions();
         for (int i = 0; i < 4; i++)
             ResolveCollisions(pairs);
+    }
+    #endregion
+    
+    #region Collider Management
+    public static List<Vector3> GenerateSpherePoints(int count)
+    {
+        List<Vector3> pts = new List<Vector3>(count);
+        float phi = Mathf.PI * (3f - Mathf.Sqrt(5f));
+        for (int i = 0; i < count; i++)
+        {
+            float y = 1f - (i / (float)(count - 1)) * 2f;
+            float radius = Mathf.Sqrt(1 - y * y);
+            float theta = phi * i;
+            float x = Mathf.Cos(theta) * radius;
+            float z = Mathf.Sin(theta) * radius;
+            pts.Add(new Vector3(x, y, z));
+        }
+        return pts;
     }
     #endregion
 

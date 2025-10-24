@@ -10,10 +10,7 @@ public class CustomSphereCollider : CustomCollider
 
     protected void Start()
     {
-        GameObject sphereGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        Mesh mesh = sphereGO.GetComponent<MeshFilter>().sharedMesh;
-        localPoints = mesh.vertices.ToList();
-        GameObject.Destroy(sphereGO);
+        localPoints = PhysicsManager.Instance.LocalSpherePoints;
     }
 
     protected override void FixedUpdate()

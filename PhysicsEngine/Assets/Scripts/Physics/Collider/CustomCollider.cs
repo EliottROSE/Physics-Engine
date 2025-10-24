@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 public class CustomCollider : MonoBehaviour
-{  
+{
     protected List<Vector3> localPoints = new List<Vector3>();
     protected List<Vector3> points = new List<Vector3>();
     
