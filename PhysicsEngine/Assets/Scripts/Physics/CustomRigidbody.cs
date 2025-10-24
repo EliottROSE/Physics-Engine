@@ -29,7 +29,7 @@ public class CustomRigidbody : MonoBehaviour
 
     private CustomCollider collider;
 
-    private Vector3 velocity = Vector3.zero; // m.s
+    public Vector3 velocity = Vector3.zero; // m.s
     public Vector3 angularVelocity = Vector3.zero; // rad/s
     
     // Principal moments of inertia in local space (Ix, Iy, Iz)
@@ -221,6 +221,8 @@ public class CustomRigidbody : MonoBehaviour
         
         RecomputeInertiaFromCollider();
         lastLossyScale = transform.lossyScale;
+        
+        //SetVelocity(new Vector3(25f, 0, 0));
     }
 
     private void FixedUpdate()

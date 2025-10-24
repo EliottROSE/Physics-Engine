@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem.HID;
 using UnityEngine.UI;
+using Vector3 = System.Numerics.Vector3;
 
 public class GameManager : MonoBehaviour
 {
@@ -64,6 +65,7 @@ public class GameManager : MonoBehaviour
         
         Ball newBall = Instantiate(BallPrefab, spawnPoint.transform.position, Quaternion.identity);
         newBall.SetBallValue(CurrentMoneyPerBall);
+        //newBall.GetComponent<CustomRigidbody>().SetVelocity(new UnityEngine.Vector3(100, 0, 0));
         PhysicsManager.Instance.AddCollider(newBall.gameObject);
         
         Money -= CurrentMoneyPerBall;
@@ -98,6 +100,14 @@ public class GameManager : MonoBehaviour
     {
         CurrentMoneyPerBall -= 5f;
         SetBallValueText();
+    }
+    
+    public void OnChangeSceneButtonClick()
+    {
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "TestScene")
+            UnityEngine.SceneManagement.SceneManager.LoadScene("RotationTestScene");
+        else
+            UnityEngine.SceneManagement.SceneManager.LoadScene("TestScene");
     }
     
 }
